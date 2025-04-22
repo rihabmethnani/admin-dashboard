@@ -192,6 +192,7 @@ export default function App() {
       <CssBaseline />
       {layout === 'dashboard' && (
         <>
+   
           <Sidenav
             color={sidenavColor}
             brand={

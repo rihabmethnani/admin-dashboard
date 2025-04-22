@@ -51,6 +51,7 @@ import PartnerTable from 'layouts/user/PartnerTable';
 import ClientTable from 'layouts/user/ClientTable';
 import DriverTable from 'layouts/user/DriverTable';
 import AdminTable from 'layouts/user/AdminTable';
+import OrderTable from 'layouts/order/OrderTable';
 
 const routes = [
   {
@@ -93,6 +94,14 @@ const routes = [
     icon: <Icon fontSize="small">directions_car</Icon>, // Icône pour les chauffeurs
     route: '/drivers',
     component: <DriverTable />, // Utilisez le composant DriverTable
+  },
+  {
+    type: 'collapse',
+    name: 'Orders',
+    key: 'orders',
+    icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
+    route: '/orders',
+    component: <OrderTable />, // Utilisez le composant OrderTable
   },
   {
     type: 'collapse',

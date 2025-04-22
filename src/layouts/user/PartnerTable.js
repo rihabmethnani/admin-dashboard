@@ -15,6 +15,7 @@ import PropTypes from 'prop-types';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
+import { clientMicroservice1 } from 'apolloClients/microservice1';
 
 // GraphQL Query pour récupérer les partenaires
 const GET_PARTNERS = gql`
@@ -26,23 +27,26 @@ const GET_PARTNERS = gql`
       phone
       address
       image
+      companyName
     }
   }
 `;
 
 // Mutation pour mettre à jour un utilisateur
-const UPDATE_USER = gql`
-  mutation UpdateUser($id: String!, $updateUserDto: UpdateUserDto!) {
-    updateUser(id: $id, updateUserDto: $updateUserDto) {
+const UPDATE_PARTNER = gql`
+  mutation UpdatePartner($id: String!, $updateUserDto: UpdateUserDto!) {
+    updatePartner(id: $id, updateUserDto: $updateUserDto) {
       _id
       name
       email
       phone
       address
       image
+      companyName
     }
   }
 `;
+
 
 // Mutation pour supprimer un utilisateur (soft remove)
 const SOFT_REMOVE_USER = gql`
@@ -66,20 +70,31 @@ const CREATE_PARTNER = gql`
       phone
       address
       role
+      companyName
     }
   }
 `;
 
 function PartnerTable() {
-  const { loading, error, data, refetch } = useQuery(GET_PARTNERS);
+  const { loading, error, data, refetch } = useQuery(GET_PARTNERS, {
+    client: clientMicroservice1,
+  });
+
   const [partners, setPartners] = useState([]);
   const [controller] = useMaterialUIController();
   const { searchTerm } = controller;
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false);
 
-  const [updateUserMutation] = useMutation(UPDATE_USER);
-  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER);
-  const [createPartnerMutation] = useMutation(CREATE_PARTNER);
+  // Mutations GraphQL
+  const [updateUserMutation] = useMutation(UPDATE_PARTNER, {
+    client: clientMicroservice1,
+  });
+  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, {
+    client: clientMicroservice1,
+  });
+  const [createPartnerMutation] = useMutation(CREATE_PARTNER, {
+    client: clientMicroservice1,
+  });
 
   useEffect(() => {
     if (data && data.getUsersByRole) {
@@ -95,6 +110,7 @@ function PartnerTable() {
           ),
           phone: partner.phone || 'N/A',
           address: partner.address || 'N/A',
+          companyName: partner.companyName || 'N/A', // Ajoutez le nom de l'entreprise
           action: (
             <MDBox display="flex" gap={1}>
               <EditModal partner={partner} onSave={handleEdit}>
@@ -121,51 +137,57 @@ function PartnerTable() {
   );
 
   const handleDelete = async (partner) => {
+    const confirmed = window.confirm("Are you sure you want to delete this partner?");
+    if (!confirmed) return;
+  
     try {
       const { data: deletedUser } = await softRemoveUserMutation({
         variables: { id: partner._id },
       });
-
+  
       console.log("Partner deleted:", deletedUser);
-
+  
+      // Met à jour la liste des partenaires sans rechargement
       setPartners((prevPartners) =>
         prevPartners.filter((user) => user._id !== partner._id)
       );
-
+  
       alert("Partner deleted successfully!");
     } catch (error) {
       console.error("Error deleting partner:", error.message);
       alert("Failed to delete partner.");
     }
   };
-
+  
   const handleEdit = async (updatedData) => {
     try {
       if (!updatedData._id) {
         throw new Error("Partner ID is missing.");
       }
-
-      const { data: updatedUser } = await updateUserMutation({
+  
+      // Construire l'objet updateUserDto dynamiquement
+      const updateUserDto = {};
+      if (updatedData.name !== undefined) updateUserDto.name = updatedData.name;
+      if (updatedData.email !== undefined) updateUserDto.email = updatedData.email;
+      if (updatedData.phone !== undefined) updateUserDto.phone = updatedData.phone || null;
+      if (updatedData.address !== undefined) updateUserDto.address = updatedData.address || null;
+      if (updatedData.image !== undefined) updateUserDto.image = updatedData.image || null;
+      if (updatedData.companyName !== undefined) updateUserDto.companyName = updatedData.companyName || null;
+  
+      const { data: updatedPartner } = await updateUserMutation({
         variables: {
           id: updatedData._id,
-          updateUserDto: {
-            name: updatedData.name,
-            email: updatedData.email,
-            phone: updatedData.phone || null,
-            address: updatedData.address || null,
-            image: updatedData.image || null,
-          },
+          updateUserDto,
         },
       });
-
-      console.log("Partner updated:", updatedUser);
+  
+      console.log("Partner updated:", updatedPartner);
       alert("Partner updated successfully!");
     } catch (error) {
       console.error("Error updating partner:", error.message);
       alert("Failed to update partner.");
     }
   };
-
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
 
@@ -174,6 +196,7 @@ function PartnerTable() {
     { Header: 'Author', accessor: 'author', width: '45%', align: 'left' },
     { Header: 'Phone', accessor: 'phone', align: 'center' },
     { Header: 'Address', accessor: 'address', align: 'left' },
+    { Header: 'Company Name', accessor: 'companyName', align: 'left' }, 
     { Header: 'Action', accessor: 'action', align: 'center' },
   ];
 
@@ -198,7 +221,6 @@ function PartnerTable() {
             Add Partner
           </MDButton>
         </MDBox>
-
         <Grid container spacing={6}>
           <Grid item xs={12}>
             <Card>
@@ -219,7 +241,6 @@ function PartnerTable() {
         </Grid>
       </MDBox>
       <Footer />
-
       <AddPartnerModal
         open={isAddPartnerModalOpen}
         onClose={() => setIsAddPartnerModalOpen(false)}
@@ -232,15 +253,15 @@ function PartnerTable() {
                   email: formData.email,
                   phone: formData.phone || null,
                   address: formData.address || null,
+                  companyName: formData.companyName || null,
                   password: formData.password,
+                  
                   role: 'PARTNER',
                 },
               },
             });
-
             console.log("New partner created:", newPartner);
             alert("Partner created successfully!");
-
             refetch();
           } catch (error) {
             console.error("Error creating partner:", error.message);
@@ -251,7 +272,6 @@ function PartnerTable() {
     </DashboardLayout>
   );
 }
-
 function EditModal({ partner, onSave, children }) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -261,6 +281,7 @@ function EditModal({ partner, onSave, children }) {
     phone: partner.phone || '',
     address: partner.address || '',
     image: partner.image || '',
+    companyName: partner.companyName || '', // Ajoutez ce champ
   });
 
   const handleSave = () => {
@@ -277,7 +298,6 @@ function EditModal({ partner, onSave, children }) {
       <span onClick={() => setOpen(true)} style={{ cursor: 'pointer' }}>
         {children}
       </span>
-
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Edit Partner</DialogTitle>
         <DialogContent>
@@ -316,6 +336,13 @@ function EditModal({ partner, onSave, children }) {
             fullWidth
             margin="normal"
           />
+          <TextField
+            label="Company Name"
+            value={formData.companyName}
+            onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+            fullWidth
+            margin="normal"
+          />
         </DialogContent>
         <DialogActions>
           <MDButton onClick={() => setOpen(false)}>Cancel</MDButton>
@@ -334,6 +361,7 @@ EditModal.propTypes = {
     phone: PropTypes.string,
     address: PropTypes.string,
     image: PropTypes.string,
+    companyName: PropTypes.string,
   }).isRequired,
   onSave: PropTypes.func.isRequired,
   children: PropTypes.node,
@@ -346,6 +374,7 @@ function AddPartnerModal({ open, onClose, onCreate }) {
     phone: '',
     address: '',
     password: '',
+    companyName: '', // Ajoutez ce champ
   });
 
   const handleSave = () => {
@@ -394,6 +423,13 @@ function AddPartnerModal({ open, onClose, onCreate }) {
           type="password"
           value={formData.password}
           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          fullWidth
+          margin="normal"
+        />
+        <TextField
+          label="Company Name"
+          value={formData.companyName}
+          onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
           fullWidth
           margin="normal"
         />

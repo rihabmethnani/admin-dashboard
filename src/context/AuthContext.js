@@ -7,7 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(
     localStorage.getItem('access_token') || null
   );
-
+const [currentUser,setCurentUser]=useState(null)
   useEffect(() => {
     if (token) {
       localStorage.setItem('access_token', token);

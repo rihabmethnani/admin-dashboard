@@ -15,6 +15,7 @@ import PropTypes from 'prop-types';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context'; // Importez le contexte
+import { clientMicroservice1 } from 'apolloClients/microservice1';
 
 // GraphQL Query pour récupérer les administrateurs
 const GET_ADMINS = gql`
@@ -71,16 +72,24 @@ const CREATE_ADMIN = gql`
 `;
 
 function AdminTable() {
-  const { loading, error, data, refetch } = useQuery(GET_ADMINS);
+  const { loading, error, data, refetch } = useQuery(GET_ADMINS, {
+    client: clientMicroservice1, // Utilisez le client du microservice 1
+  });
   const [admins, setAdmins] = useState([]);
   const [controller] = useMaterialUIController(); // Récupérez le contexte
   const { searchTerm } = controller; // Récupérez le terme de recherche
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false); // État pour la modale
 
   // Mutations GraphQL
-  const [updateUserMutation] = useMutation(UPDATE_USER);
-  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER);
-  const [createAdminMutation] = useMutation(CREATE_ADMIN);
+  const [updateUserMutation] = useMutation(UPDATE_USER, {
+    client: clientMicroservice1, // Utilisez le client du microservice 1
+  });
+  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, {
+    client: clientMicroservice1, // Utilisez le client du microservice 1
+  });
+  const [createAdminMutation] = useMutation(CREATE_ADMIN, {
+    client: clientMicroservice1, // Utilisez le client du microservice 1
+  });
 
   useEffect(() => {
     if (data && data.getUsersByRole) {

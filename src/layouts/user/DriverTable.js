@@ -15,6 +15,7 @@ import PropTypes from 'prop-types';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
+import { clientMicroservice1 } from 'apolloClients/microservice1';
 
 // GraphQL Query pour récupérer les chauffeurs
 const GET_DRIVERS = gql`
@@ -71,15 +72,23 @@ const CREATE_DRIVER = gql`
 `;
 
 function DriverTable() {
-  const { loading, error, data, refetch } = useQuery(GET_DRIVERS);
+  const { loading, error, data, refetch } = useQuery(GET_DRIVERS, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
   const [drivers, setDrivers] = useState([]);
   const [controller] = useMaterialUIController();
   const { searchTerm } = controller;
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
 
-  const [updateUserMutation] = useMutation(UPDATE_USER);
-  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER);
-  const [createDriverMutation] = useMutation(CREATE_DRIVER);
+  const [updateUserMutation] = useMutation(UPDATE_USER, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
+  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
+  const [createDriverMutation] = useMutation(CREATE_DRIVER, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
 
   useEffect(() => {
     if (data && data.getUsersByRole) {

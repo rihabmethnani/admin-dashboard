@@ -15,6 +15,7 @@ import PropTypes from 'prop-types';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
+import { clientMicroservice1 } from 'apolloClients/microservice1';
 
 // GraphQL Query pour récupérer les clients
 const GET_CLIENTS = gql`
@@ -71,15 +72,23 @@ const CREATE_CLIENT = gql`
 `;
 
 function ClientTable() {
-  const { loading, error, data, refetch } = useQuery(GET_CLIENTS);
+  const { loading, error, data, refetch } = useQuery(GET_CLIENTS, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
   const [clients, setClients] = useState([]);
   const [controller] = useMaterialUIController();
   const { searchTerm } = controller;
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
 
-  const [updateUserMutation] = useMutation(UPDATE_USER);
-  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER);
-  const [createClientMutation] = useMutation(CREATE_CLIENT);
+  const [updateUserMutation] = useMutation(UPDATE_USER, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
+  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
+  const [createClientMutation] = useMutation(CREATE_CLIENT, {
+      client: clientMicroservice1, // Utilisez le client du microservice 1
+    });
 
   useEffect(() => {
     if (data && data.getUsersByRole) {

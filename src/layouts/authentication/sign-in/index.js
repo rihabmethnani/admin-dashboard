@@ -1,5 +1,4 @@
-// prettier-ignore
-
+// src/components/Basic.js
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -28,6 +27,8 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 
 // Images
 import bgImage from "assets/images/bg-sign-in-basic.jpeg";
+import { clientMicroservice1 } from "apolloClients/microservice1";
+
 
 function Basic() {
   const [email, setEmail] = useState("");
@@ -46,7 +47,14 @@ function Basic() {
     }
   `;
 
-  const [login, { loading, error }] = useMutation(LOGIN_MUTATION);
+  // Utilisez le client spécifique pour le microservice 1
+  const [login, { loading, error }] = useMutation(LOGIN_MUTATION, {
+    client: clientMicroservice1,
+    onCompleted:(data)=>{
+    console.log(data)
+    }, // Spécifiez explicitement le client ici
+    
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,6 +67,11 @@ function Basic() {
     try {
       const { data } = await login({ variables: { email, password } });
       localStorage.setItem("access_token", data.login.access_token);
+      // loadMe before navigate 
+      // loadMe will store the use in the state currentUser in the context 
+      // // user :{
+      // role : 
+      // }
       navigate("/dashboard");
     } catch (error) {
       console.error("Erreur lors de la connexion :", error);
@@ -82,7 +95,7 @@ function Basic() {
           <MDTypography variant="h4" fontWeight="medium" color="white" mt={1}>
             Sign in
           </MDTypography>
-          <Grid container spacing={3} justifyContent="center" sx={{ mt: 1, mb: 2 }}>
+          {/* <Grid container spacing={3} justifyContent="center" sx={{ mt: 1, mb: 2 }}>
             <Grid item xs={2}>
               <MDTypography component={MuiLink} href="#" variant="body1" color="white">
                 <FacebookIcon color="inherit" />
@@ -98,7 +111,7 @@ function Basic() {
                 <GoogleIcon color="inherit" />
               </MDTypography>
             </Grid>
-          </Grid>
+          </Grid> */}
         </MDBox>
         <MDBox pt={4} pb={3} px={3}>
           <MDBox component="form" role="form" onSubmit={handleSubmit}>
