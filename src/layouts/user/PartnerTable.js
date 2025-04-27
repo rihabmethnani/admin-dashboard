@@ -240,7 +240,7 @@ function PartnerTable() {
           </Grid>
         </Grid>
       </MDBox>
-      <Footer />
+      {/* <Footer /> */}
       <AddPartnerModal
         open={isAddPartnerModalOpen}
         onClose={() => setIsAddPartnerModalOpen(false)}

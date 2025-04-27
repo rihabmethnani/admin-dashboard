@@ -231,7 +231,7 @@ function ClientTable() {
           </Grid>
         </Grid>
       </MDBox>
-      <Footer />
+      {/* <Footer /> */}
 
       {/* Modale pour ajouter un client */}
       <AddClientModal

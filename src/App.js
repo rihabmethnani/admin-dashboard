@@ -48,6 +48,7 @@ import routesAdmin from 'routesAdmin';
 import routesPartner from 'routesPartner';
 import routesAssistantAdmin from 'routesAssistantAdmin';
 import routesSuperAdmin from 'routesSuperAdmin';
+import unauthorizedRoute from 'unauthorizedRoute';
 
 // Material Dashboard 2 React contexts
 import {
@@ -80,7 +81,7 @@ export default function App() {
 
 
 
-  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : routesAdmin
+  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : unauthorizedRoute
 
   // Cache for the rtl
   useMemo(() => {

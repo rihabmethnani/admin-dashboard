@@ -23,24 +23,28 @@ export const AuthProvider = ({ children }) => {
     client: clientMicroservice1,
   });
 
-  const [token, setToken] = useState(
-    localStorage.getItem('access_token') || null
-  );
+
     const navigate = useNavigate();
 const [currentUser,setCurentUser]=useState(null)
   useEffect(() => {
+    const token = localStorage.getItem("access_token"); // Get the token from local storage
+
    const loadCurrentUser = async () => {
-      if (!token) return; // If no token, do not fetch user data
-      const { data: userData } = await loadMe({ variables: { token } });
-      if (userData && userData.loadMe) {
-        setCurentUser(userData.loadMe); // Store the user data in the context
-        console.log("Current User:", userData.loadMe);
-        console.log('currentUser',currentUser)
-        navigate("/dashboard");
+      if (!token) {
+        navigate("/authentication/sign-in");
+      } else {
+
+        const { data: userData } = await loadMe({ variables: { token } });
+        if (userData && userData.loadMe) {
+          setCurentUser(userData.loadMe); // Store the user data in the context
+          console.log("Current User:", userData.loadMe);
+          console.log('currentUser',currentUser)
+          navigate("/dashboard");
+        }
       }
     };
     loadCurrentUser();
-  }, [token]);
+  }, []);
 
 
   const logout = () => {
@@ -48,7 +52,7 @@ const [currentUser,setCurentUser]=useState(null)
   };
 
   return (
-    <AuthContext.Provider value={{ token, setToken, logout,currentUser,setCurentUser }}>
+    <AuthContext.Provider value={{ logout,currentUser,setCurentUser }}>
       {children}
     </AuthContext.Provider>
   );

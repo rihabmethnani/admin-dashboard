@@ -231,7 +231,7 @@ function DriverTable() {
           </Grid>
         </Grid>
       </MDBox>
-      <Footer />
+      {/* <Footer /> */}
 
       {/* Modale pour ajouter un chauffeur */}
       <AddDriverModal
