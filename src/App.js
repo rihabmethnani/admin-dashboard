@@ -80,7 +80,7 @@ export default function App() {
 
 
 
-  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : null
+  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : routesAdmin
 
   // Cache for the rtl
   useMemo(() => {
