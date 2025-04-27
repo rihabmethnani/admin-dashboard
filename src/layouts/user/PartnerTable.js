@@ -16,6 +16,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
+import { useAuth } from 'context/AuthContext';
 
 // GraphQL Query pour récupérer les partenaires
 const GET_PARTNERS = gql`
@@ -190,7 +191,7 @@ function PartnerTable() {
   };
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
-
+  const {currentUser}=useAuth()
   const columns = [
     { Header: 'ID', accessor: 'id', align: 'center' },
     { Header: 'Author', accessor: 'author', width: '45%', align: 'left' },
@@ -199,6 +200,13 @@ function PartnerTable() {
     { Header: 'Company Name', accessor: 'companyName', align: 'left' }, 
     { Header: 'Action', accessor: 'action', align: 'center' },
   ];
+  const unpermissionedColumns = [    { Header: 'ID', accessor: 'id', align: 'center' },
+    { Header: 'Author', accessor: 'author', width: '45%', align: 'left' },
+    { Header: 'Phone', accessor: 'phone', align: 'center' },
+    { Header: 'Address', accessor: 'address', align: 'left' },
+    { Header: 'Company Name', accessor: 'companyName', align: 'left' }, 
+   ]
+  const permissionColumns = currentUser?.role === "ADMIN" ? columns : unpermissionedColumns
 
   return (
     <DashboardLayout>
@@ -213,6 +221,8 @@ function PartnerTable() {
           <MDTypography variant="h6" fontWeight="medium">
             Partner Users Table
           </MDTypography>
+          { currentUser?.role==="ADMIN" &&
+
           <MDButton
             variant="gradient"
             color="info"
@@ -220,6 +230,7 @@ function PartnerTable() {
           >
             Add Partner
           </MDButton>
+          }
         </MDBox>
         <Grid container spacing={6}>
           <Grid item xs={12}>
@@ -227,7 +238,7 @@ function PartnerTable() {
               <MDBox pt={3}>
                 <DataTable
                   table={{
-                    columns,
+                    columns: permissionColumns,
                     rows: filteredPartners,
                   }}
                   isSorted={false}

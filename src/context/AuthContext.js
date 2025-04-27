@@ -26,8 +26,8 @@ export const AuthProvider = ({ children }) => {
 
     const navigate = useNavigate();
 const [currentUser,setCurentUser]=useState(null)
+const token = localStorage.getItem("access_token"); // Get the token from local storage
   useEffect(() => {
-    const token = localStorage.getItem("access_token"); // Get the token from local storage
 
    const loadCurrentUser = async () => {
       if (!token) {
@@ -44,7 +44,7 @@ const [currentUser,setCurentUser]=useState(null)
       }
     };
     loadCurrentUser();
-  }, []);
+  }, [token]);
 
 
   const logout = () => {

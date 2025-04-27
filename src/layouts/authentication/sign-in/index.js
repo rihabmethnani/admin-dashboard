@@ -26,7 +26,7 @@ import MDButton from "components/MDButton";
 import BasicLayout from "layouts/authentication/components/BasicLayout";
 
 // Images
-import bgImage from "assets/images/bg-sign-in-basic.jpeg";
+import bgImage from "assets/images/background.jpg";
 import { clientMicroservice1 } from "apolloClients/microservice1";
 import { useAuth } from "context/AuthContext";
 
@@ -101,6 +101,7 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
   };
   return (
     <BasicLayout image={bgImage}>
+      
       <Card>
         <MDBox
           variant="gradient"

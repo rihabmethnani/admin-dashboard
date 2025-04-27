@@ -16,6 +16,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
+import { useAuth } from 'context/AuthContext';
 
 // GraphQL Query pour récupérer les chauffeurs
 const GET_DRIVERS = gql`
@@ -89,7 +90,7 @@ function DriverTable() {
   const [createDriverMutation] = useMutation(CREATE_DRIVER, {
       client: clientMicroservice1, // Utilisez le client du microservice 1
     });
-
+    const {currentUser}=useAuth()
   useEffect(() => {
     if (data && data.getUsersByRole) {
       setDrivers(
@@ -186,6 +187,16 @@ function DriverTable() {
     { Header: 'Action', accessor: 'action', align: 'center' },
   ];
 
+  const unpermessionColumns = [
+    { Header: 'ID', accessor: 'id', align: 'center' },
+    { Header: 'Author', accessor: 'author', width: '45%', align: 'left' },
+    { Header: 'Phone', accessor: 'phone', align: 'center' },
+    { Header: 'Address', accessor: 'address', align: 'left' },
+
+  ];
+  const permesionColuns = currentUser?.role==="ADMIN" ? columns : unpermessionColumns
+  console.log(currentUser?.role)
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -203,6 +214,7 @@ function DriverTable() {
           </MDTypography>
 
           {/* Bouton pour ajouter un chauffeur */}
+          { currentUser?.role==="ADMIN" &&
           <MDButton
             variant="gradient"
             color="info"
@@ -210,6 +222,7 @@ function DriverTable() {
           >
             Add Driver
           </MDButton>
+          }
         </MDBox>
 
         <Grid container spacing={6}>
@@ -218,7 +231,7 @@ function DriverTable() {
               <MDBox pt={3}>
                 <DataTable
                   table={{
-                    columns,
+                    columns: permesionColuns, // Utilisez les colonnes définies ci-dessus
                     rows: filteredDrivers, // Utilisez les données filtrées
                   }}
                   isSorted={false}

@@ -64,14 +64,14 @@ const routesAdmin = [
     route: '/dashboard',
     component: <Dashboard />,
   },
-  {
-    type: 'collapse',
-    name: 'Admins',
-    key: 'admins',
-    icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
-    route: '/admins',
-    component: <AdminTable />, // Utilisez le composant AdminLayout
-  },
+  // {
+  //   type: 'collapse',
+  //   name: 'Admins',
+  //   key: 'admins',
+  //   icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
+  //   route: '/admins',
+  //   component: <AdminTable />, // Utilisez le composant AdminLayout
+  // },
 
   {
     type: 'collapse',
@@ -147,7 +147,7 @@ const routesAdmin = [
   // },
   {
     type: 'collapse',
-    name: 'Sign In',
+    name: 'Sign Out',
     key: 'sign-in',
     icon: <Icon fontSize="small">login</Icon>,
     route: '/authentication/sign-in',

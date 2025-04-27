@@ -40,7 +40,7 @@ function BasicLayout({ image, children }) {
           color: 'dark',
         }}
       /> */}
-      {/* <MDBox
+      <MDBox
         position="absolute"
         width="100%"
         minHeight="100vh"
@@ -58,7 +58,7 @@ function BasicLayout({ image, children }) {
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}
-      /> */}
+      />
       <MDBox px={1} width="100%" height="100vh" mx="auto">
         <Grid
           container

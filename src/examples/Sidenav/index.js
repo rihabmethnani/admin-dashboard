@@ -192,7 +192,7 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
               fontWeight="medium"
               color={textColor}
             >
-              {brandName}
+           First Delivery
             </MDTypography>
           </MDBox>
         </MDBox>

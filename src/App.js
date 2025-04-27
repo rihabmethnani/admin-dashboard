@@ -48,7 +48,7 @@ import routesAdmin from 'routesAdmin';
 import routesPartner from 'routesPartner';
 import routesAssistantAdmin from 'routesAssistantAdmin';
 import routesSuperAdmin from 'routesSuperAdmin';
-import unauthorizedRoute from 'unauthorizedRoute';
+
 
 // Material Dashboard 2 React contexts
 import {
@@ -81,7 +81,7 @@ export default function App() {
 
 
 
-  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : unauthorizedRoute
+  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : routesAdmin
 
   // Cache for the rtl
   useMemo(() => {
@@ -172,7 +172,7 @@ export default function App() {
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
         <CssBaseline />
-        {layout === 'dashboard' && (
+        {(layout === 'dashboard' && routes !== null) && (
           <>
             <Sidenav
               color={sidenavColor}
@@ -181,7 +181,7 @@ export default function App() {
                   ? brandDark
                   : brandWhite
               }
-              brandName="Material Dashboard 2"
+              brandName="First Delivery"
               routes={routes}
               onMouseEnter={handleOnMouseEnter}
               onMouseLeave={handleOnMouseLeave}
@@ -192,7 +192,7 @@ export default function App() {
         )}
         {layout === 'vr' && <Configurator />}
         <Routes>
-          {getRoutes(routes)}
+          {routes !== null && getRoutes(routes)}
           <Route path="*" element={<Navigate to="/authentication/sign-in" />} />
         </Routes>
       </ThemeProvider>
