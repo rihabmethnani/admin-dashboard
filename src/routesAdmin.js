@@ -52,8 +52,10 @@ import ClientTable from 'layouts/user/ClientTable';
 import DriverTable from 'layouts/user/DriverTable';
 import AdminTable from 'layouts/user/AdminTable';
 import OrderTable from 'layouts/order/OrderTable';
-
-const routes = [
+import { useAuth } from 'context/AuthContext';
+  // const {currentUser,setCurentUser}=useAuth()
+  // console.log("Curraaaaaent User:", currentUser);
+const routesAdmin = [
   {
     type: 'collapse',
     name: 'Dashboard',
@@ -79,14 +81,14 @@ const routes = [
     route: '/partners',
     component: <PartnerTable />, // Utilisez le composant PartnerTable
   },
-  {
-    type: 'collapse',
-    name: 'Clients',
-    key: 'clients',
-    icon: <Icon fontSize="small">people</Icon>, // Icône pour les clients
-    route: '/clients',
-    component: <ClientTable />, // Utilisez le composant ClientTable
-  },
+  // {
+  //   type: 'collapse',
+  //   name: 'Clients',
+  //   key: 'clients',
+  //   icon: <Icon fontSize="small">people</Icon>, // Icône pour les clients
+  //   route: '/clients',
+  //   component: <ClientTable />, // Utilisez le composant ClientTable
+  // },
   {
     type: 'collapse',
     name: 'Drivers',
@@ -95,54 +97,54 @@ const routes = [
     route: '/drivers',
     component: <DriverTable />, // Utilisez le composant DriverTable
   },
-  {
-    type: 'collapse',
-    name: 'Orders',
-    key: 'orders',
-    icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
-    route: '/orders',
-    component: <OrderTable />, // Utilisez le composant OrderTable
-  },
-  {
-    type: 'collapse',
-    name: 'Tables',
-    key: 'tables',
-    icon: <Icon fontSize="small">table_view</Icon>,
-    route: '/tables',
-    component: <Tables />,
-  },
-  {
-    type: 'collapse',
-    name: 'Billing',
-    key: 'billing',
-    icon: <Icon fontSize="small">receipt_long</Icon>,
-    route: '/billing',
-    component: <Billing />,
-  },
-  {
-    type: 'collapse',
-    name: 'RTL',
-    key: 'rtl',
-    icon: <Icon fontSize="small">format_textdirection_r_to_l</Icon>,
-    route: '/rtl',
-    component: <RTL />,
-  },
-  {
-    type: 'collapse',
-    name: 'Notifications',
-    key: 'notifications',
-    icon: <Icon fontSize="small">notifications</Icon>,
-    route: '/notifications',
-    component: <Notifications />,
-  },
-  {
-    type: 'collapse',
-    name: 'Profile',
-    key: 'profile',
-    icon: <Icon fontSize="small">person</Icon>,
-    route: '/profile',
-    component: <Profile />,
-  },
+  // {
+  //   type: 'collapse',
+  //   name: 'Orders',
+  //   key: 'orders',
+  //   icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
+  //   route: '/orders',
+  //   component: <OrderTable />, // Utilisez le composant OrderTable
+  // },
+  // {
+  //   type: 'collapse',
+  //   name: 'Tables',
+  //   key: 'tables',
+  //   icon: <Icon fontSize="small">table_view</Icon>,
+  //   route: '/tables',
+  //   component: <Tables />,
+  // },
+  // {
+  //   type: 'collapse',
+  //   name: 'Billing',
+  //   key: 'billing',
+  //   icon: <Icon fontSize="small">receipt_long</Icon>,
+  //   route: '/billing',
+  //   component: <Billing />,
+  // },
+  // {
+  //   type: 'collapse',
+  //   name: 'RTL',
+  //   key: 'rtl',
+  //   icon: <Icon fontSize="small">format_textdirection_r_to_l</Icon>,
+  //   route: '/rtl',
+  //   component: <RTL />,
+  // },
+  // {
+  //   type: 'collapse',
+  //   name: 'Notifications',
+  //   key: 'notifications',
+  //   icon: <Icon fontSize="small">notifications</Icon>,
+  //   route: '/notifications',
+  //   component: <Notifications />,
+  // },
+  // {
+  //   type: 'collapse',
+  //   name: 'Profile',
+  //   key: 'profile',
+  //   icon: <Icon fontSize="small">person</Icon>,
+  //   route: '/profile',
+  //   component: <Profile />,
+  // },
   {
     type: 'collapse',
     name: 'Sign In',
@@ -151,16 +153,16 @@ const routes = [
     route: '/authentication/sign-in',
     component: <SignIn />,
   },
-  {
-    type: 'collapse',
-    name: 'Sign Up',
-    key: 'sign-up',
-    icon: <Icon fontSize="small">assignment</Icon>,
-    route: '/authentication/sign-up',
-    component: <SignUp />,
-  },
+  // {
+  //   type: 'collapse',
+  //   name: 'Sign Up',
+  //   key: 'sign-up',
+  //   icon: <Icon fontSize="small">assignment</Icon>,
+  //   route: '/authentication/sign-up',
+  //   component: <SignUp />,
+  // },
 
 
 ];
 
-export default routes;
+export default routesAdmin;

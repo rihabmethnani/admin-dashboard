@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation } from "@apollo/client";
+import { useMutation, useLazyQuery } from "@apollo/client";
 import gql from "graphql-tag";
 
 // @mui material components
@@ -28,9 +28,11 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 // Images
 import bgImage from "assets/images/bg-sign-in-basic.jpeg";
 import { clientMicroservice1 } from "apolloClients/microservice1";
+import { useAuth } from "context/AuthContext";
 
 
 function Basic() {
+  const {currentUser,setCurentUser}=useAuth()
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -55,29 +57,48 @@ function Basic() {
     }, // Spécifiez explicitement le client ici
     
   });
+  const LOAD_ME_QUERY = gql`
+  query LoadMe($token: String!) {
+    loadMe(token: $token) {
+      _id
+      name
+      email
+      role
+    }
+  }
+`;
+const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
+  client: clientMicroservice1,
+});
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (!email || !password) {
       alert("Veuillez remplir tous les champs.");
       return;
     }
-
+  
     try {
       const { data } = await login({ variables: { email, password } });
-      localStorage.setItem("access_token", data.login.access_token);
-      // loadMe before navigate 
-      // loadMe will store the use in the state currentUser in the context 
-      // // user :{
-      // role : 
-      // }
+      const token = data.login.access_token;
+  
+      localStorage.setItem("access_token", token);
+  
+      // Now fetch the current user using loadMe
+      const { data: userData } = await loadMe({ variables: { token } });
+  if (userData && userData.loadMe) {
+        setCurentUser(userData.loadMe); // Store the user data in the context
+        console.log("Current User:", userData.loadMe);
+        console.log('currentUser',currentUser)
+      }
+  
       navigate("/dashboard");
     } catch (error) {
       console.error("Erreur lors de la connexion :", error);
     }
   };
-
   return (
     <BasicLayout image={bgImage}>
       <Card>
@@ -150,7 +171,7 @@ function Basic() {
                 {loading ? "Signing in..." : "Sign in"}
               </MDButton>
             </MDBox>
-            <MDBox mt={3} mb={1} textAlign="center">
+            {/* <MDBox mt={3} mb={1} textAlign="center">
               <MDTypography variant="button" color="text">
                 Don&apos;t have an account?{" "}
                 <MDTypography
@@ -164,7 +185,7 @@ function Basic() {
                   Sign up
                 </MDTypography>
               </MDTypography>
-            </MDBox>
+            </MDBox> */}
             {error && (
               <MDBox mt={2}>
                 <MDTypography variant="caption" color="error">

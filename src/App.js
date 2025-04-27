@@ -44,7 +44,10 @@ import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 
 // Material Dashboard 2 React routes
-import routes from 'routes';
+import routesAdmin from 'routesAdmin';
+import routesPartner from 'routesPartner';
+import routesAssistantAdmin from 'routesAssistantAdmin';
+import routesSuperAdmin from 'routesSuperAdmin';
 
 // Material Dashboard 2 React contexts
 import {
@@ -56,6 +59,7 @@ import {
 // Images
 import brandWhite from 'assets/images/logo-ct.png';
 import brandDark from 'assets/images/logo-ct-dark.png';
+import { useAuth } from 'context/AuthContext';
 
 export default function App() {
   const [controller, dispatch] = useMaterialUIController();
@@ -72,6 +76,11 @@ export default function App() {
   const [onMouseEnter, setOnMouseEnter] = useState(false);
   const [rtlCache, setRtlCache] = useState(null);
   const { pathname } = useLocation();
+  const {currentUser,setCurentUser}=useAuth()
+
+
+
+  const routes = currentUser?.role === 'ADMIN' ? routesAdmin : currentUser?.role === 'PARTNER' ? routesPartner : currentUser?.role === 'ASSISTANT_ADMIN' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : null
 
   // Cache for the rtl
   useMemo(() => {
