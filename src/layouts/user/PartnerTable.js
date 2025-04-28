@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery, gql, useMutation } from '@apollo/client';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
@@ -6,20 +7,19 @@ import MDBox from 'components/MDBox';
 import MDTypography from 'components/MDTypography';
 import DashboardLayout from 'examples/LayoutContainers/DashboardLayout';
 import DashboardNavbar from 'examples/Navbars/DashboardNavbar';
-import Footer from 'examples/Footer';
 import DataTable from 'examples/Tables/DataTable';
-import Author from './Author';
-import { Dialog, DialogTitle, DialogContent, TextField, DialogActions } from '@mui/material';
 import MDButton from 'components/MDButton';
-import PropTypes from 'prop-types';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
 import { useAuth } from 'context/AuthContext';
 import { VALIDATE_PARTNER } from 'graphql/mutations/userMutations';
+import Author from './Author';
+import PropTypes from 'prop-types';
+import { Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
 
-// GraphQL Query pour récupérer les partenaires
+// GraphQL Queries & Mutations
 const GET_PARTNERS = gql`
   query GetPartners {
     getUsersByRole(role: "PARTNER") {
@@ -30,11 +30,11 @@ const GET_PARTNERS = gql`
       address
       image
       companyName
+      isValid
     }
   }
 `;
 
-// Mutation pour mettre à jour un utilisateur
 const UPDATE_PARTNER = gql`
   mutation UpdatePartner($id: String!, $updateUserDto: UpdateUserDto!) {
     updatePartner(id: $id, updateUserDto: $updateUserDto) {
@@ -49,20 +49,14 @@ const UPDATE_PARTNER = gql`
   }
 `;
 
-
-// Mutation pour supprimer un utilisateur (soft remove)
 const SOFT_REMOVE_USER = gql`
   mutation SoftRemoveUser($id: String!) {
     softRemoveUser(id: $id) {
       _id
-      name
-      email
-      deletedAt
     }
   }
 `;
 
-// Mutation pour créer un nouveau partenaire
 const CREATE_PARTNER = gql`
   mutation CreatePartner($createUserDto: CreateUserDto!) {
     createPartner(createUserDto: $createUserDto) {
@@ -78,154 +72,120 @@ const CREATE_PARTNER = gql`
 `;
 
 function PartnerTable() {
-  const { loading, error, data, refetch } = useQuery(GET_PARTNERS, {
-    client: clientMicroservice1,
-  });
-
-  const [partners, setPartners] = useState([]);
+  const { loading, error, data, refetch } = useQuery(GET_PARTNERS, { client: clientMicroservice1 });
   const [controller] = useMaterialUIController();
   const { searchTerm } = controller;
+  const { currentUser } = useAuth();
+
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false);
 
-  // Mutations GraphQL
-  const [updateUserMutation] = useMutation(UPDATE_PARTNER, {
-    client: clientMicroservice1,
-  });
-  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, {
-    client: clientMicroservice1,
-  });
-  const [createPartnerMutation] = useMutation(CREATE_PARTNER, {
-    client: clientMicroservice1,
-  });
-  const [validatePartnerMutation] = useMutation(VALIDATE_PARTNER, {
-    client: clientMicroservice1,
-  });
+  const [updateUserMutation] = useMutation(UPDATE_PARTNER, { client: clientMicroservice1 });
+  const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, { client: clientMicroservice1 });
+  const [createPartnerMutation] = useMutation(CREATE_PARTNER, { client: clientMicroservice1 });
+  const [validatePartnerMutation] = useMutation(VALIDATE_PARTNER, { client: clientMicroservice1 });
 
-  useEffect(() => {
-    if (data && data.getUsersByRole) {
-      setPartners(
-        data.getUsersByRole.map((partner, index) => ({
-          id: index + 1,
-          author: (
-            <Author
-              image={partner.image || null}
-              name={partner.name}
-              email={partner.email}
-            />
-          ),
-          phone: partner.phone || 'N/A',
-          address: partner.address || 'N/A',
-          companyName: partner.companyName || 'N/A',
-          isValid: partner.isValid ? (
-            <MDTypography variant="caption" color="success" fontWeight="medium">
-              Validé
-            </MDTypography>
-          ) : (
-            <MDButton
-              variant="gradient"
-              color="success"
-              size="small"
-              onClick={(e) => {
-                e.preventDefault();
-                handleValidate(partner._id);
-              }}
-            >
-              Valider
-            </MDButton>
-          ),
-          action: (
-            <MDBox display="flex" gap={1}>
-              <EditModal partner={partner} onSave={handleEdit}>
-                <EditIcon color="info" style={{ cursor: 'pointer' }} />
-              </EditModal>
-              <DeleteIcon
-                color="error"
-                style={{ cursor: 'pointer' }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleDelete(partner);
-                }}
-              />
-            </MDBox>
-          ),
-        }))
-      );
-    }
-  }, [data]);
-  const filteredPartners = partners.filter((partner) =>
-    partner.author.props.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    partner.author.props.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const partners = data?.getUsersByRole || [];
+
   const handleValidate = async (partnerId) => {
     try {
-      const { data: validatedPartner } = await validatePartnerMutation({
-        variables: { partnerId },
-      });
-  
-      console.log("Partner validated:", validatedPartner);
-      alert("Partner validated successfully!");
-      refetch(); // Rafraîchir les données
+      await validatePartnerMutation({ variables: { partnerId } });
+      alert('Partner validated successfully!');
+      refetch();
     } catch (error) {
-      console.error("Error validating partner:", error.message);
-      alert("Failed to validate partner.");
+      console.error(error);
+      alert('Failed to validate partner.');
     }
   };
-  
-  const handleDelete = async (partner) => {
-    const confirmed = window.confirm("Are you sure you want to delete this partner?");
+
+  const handleDelete = async (partnerId) => {
+    const confirmed = window.confirm('Are you sure you want to delete this partner?');
     if (!confirmed) return;
-  
+
     try {
-      const { data: deletedUser } = await softRemoveUserMutation({
-        variables: { id: partner._id },
-      });
-  
-      console.log("Partner deleted:", deletedUser);
-  
-      // Met à jour la liste des partenaires sans rechargement
-      setPartners((prevPartners) =>
-        prevPartners.filter((user) => user._id !== partner._id)
-      );
-  
-      alert("Partner deleted successfully!");
+      await softRemoveUserMutation({ variables: { id: partnerId } });
+      alert('Partner deleted successfully!');
+      refetch();
     } catch (error) {
-      console.error("Error deleting partner:", error.message);
-      alert("Failed to delete partner.");
+      console.error(error);
+      alert('Failed to delete partner.');
     }
   };
-  
+
   const handleEdit = async (updatedData) => {
     try {
-      if (!updatedData._id) {
-        throw new Error("Partner ID is missing.");
-      }
-  
-      // Construire l'objet updateUserDto dynamiquement
-      const updateUserDto = {};
-      if (updatedData.name !== undefined) updateUserDto.name = updatedData.name;
-      if (updatedData.email !== undefined) updateUserDto.email = updatedData.email;
-      if (updatedData.phone !== undefined) updateUserDto.phone = updatedData.phone || null;
-      if (updatedData.address !== undefined) updateUserDto.address = updatedData.address || null;
-      if (updatedData.image !== undefined) updateUserDto.image = updatedData.image || null;
-      if (updatedData.companyName !== undefined) updateUserDto.companyName = updatedData.companyName || null;
-  
-      const { data: updatedPartner } = await updateUserMutation({
+      if (!updatedData._id) throw new Error('Partner ID is missing.');
+
+      const updateUserDto = {
+        name: updatedData.name,
+        email: updatedData.email,
+        phone: updatedData.phone || null,
+        address: updatedData.address || null,
+        image: updatedData.image || null,
+        companyName: updatedData.companyName || null,
+      };
+
+      await updateUserMutation({
         variables: {
           id: updatedData._id,
           updateUserDto,
         },
       });
-  
-      console.log("Partner updated:", updatedPartner);
-      alert("Partner updated successfully!");
+
+      alert('Partner updated successfully!');
+      refetch();
     } catch (error) {
-      console.error("Error updating partner:", error.message);
-      alert("Failed to update partner.");
+      console.error(error);
+      alert('Failed to update partner.');
     }
   };
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-  const {currentUser}=useAuth()
+
+  const rows = useMemo(() => {
+    return partners
+      .filter((partner) =>
+        partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        partner.email.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .map((partner, index) => ({
+        id: index + 1,
+        author: <Author image={partner.image || null} name={partner.name} email={partner.email} />,
+        phone: partner.phone || 'N/A',
+        address: partner.address || 'N/A',
+        companyName: partner.companyName || 'N/A',
+        isValid: partner.isValid ? (
+          <MDTypography variant="caption" color="success" fontWeight="medium">
+            Validé
+          </MDTypography>
+        ) : (
+          <MDButton
+            variant="gradient"
+            color="success"
+            size="small"
+            onClick={(e) => {
+              e.preventDefault();
+              handleValidate(partner._id);
+            }}
+          >
+            Valider
+          </MDButton>
+        ),
+        action: currentUser?.role === 'ADMIN' && (
+          <MDBox display="flex" gap={1}>
+            <EditModal partner={partner} onSave={handleEdit}>
+              <EditIcon color="info" style={{ cursor: 'pointer' }} />
+            </EditModal>
+            <DeleteIcon
+              color="error"
+              style={{ cursor: 'pointer' }}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete(partner._id);
+              }}
+            />
+          </MDBox>
+        ),
+      }));
+  }, [partners, searchTerm, currentUser]);
+
   const columns = [
     { Header: 'ID', accessor: 'id', align: 'center' },
     { Header: 'Author', accessor: 'author', width: '30%', align: 'left' },
@@ -233,51 +193,37 @@ function PartnerTable() {
     { Header: 'Address', accessor: 'address', align: 'left' },
     { Header: 'Company Name', accessor: 'companyName', align: 'left' },
     { Header: 'Statut', accessor: 'isValid', align: 'center' },
-    { Header: 'Action', accessor: 'action', align: 'center' },
+    ...(currentUser?.role === 'ADMIN'
+      ? [{ Header: 'Action', accessor: 'action', align: 'center' }]
+      : []),
   ];
-  
-  const unpermissionedColumns = [
-    { Header: 'ID', accessor: 'id', align: 'center' },
-    { Header: 'Author', accessor: 'author', width: '30%', align: 'left' },
-    { Header: 'Phone', accessor: 'phone', align: 'center' },
-    { Header: 'Address', accessor: 'address', align: 'left' },
-    { Header: 'Company Name', accessor: 'companyName', align: 'left' },
-    { Header: 'Statut', accessor: 'isValid', align: 'center' },
-  ];
-  const permissionColumns = currentUser?.role === "ADMIN" ? columns : unpermissionedColumns
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
 
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
-        <MDBox
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-        >
+        <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <MDTypography variant="h6" fontWeight="medium">
             Partner Users Table
           </MDTypography>
-          { currentUser?.role==="ADMIN" &&
-
-          <MDButton
-            variant="gradient"
-            color="info"
-            onClick={() => setIsAddPartnerModalOpen(true)}
-          >
-            Add Partner
-          </MDButton>
-          }
+          {currentUser?.role === 'ADMIN' && (
+            <MDButton variant="gradient" color="info" onClick={() => setIsAddPartnerModalOpen(true)}>
+              Add Partner
+            </MDButton>
+          )}
         </MDBox>
+
         <Grid container spacing={6}>
           <Grid item xs={12}>
             <Card>
               <MDBox pt={3}>
                 <DataTable
                   table={{
-                    columns: permissionColumns,
-                    rows: filteredPartners,
+                    columns,
+                    rows,
                   }}
                   isSorted={false}
                   entriesPerPage={false}
@@ -289,13 +235,13 @@ function PartnerTable() {
           </Grid>
         </Grid>
       </MDBox>
-      {/* <Footer /> */}
+
       <AddPartnerModal
         open={isAddPartnerModalOpen}
         onClose={() => setIsAddPartnerModalOpen(false)}
         onCreate={async (formData) => {
           try {
-            const { data: newPartner } = await createPartnerMutation({
+            await createPartnerMutation({
               variables: {
                 createUserDto: {
                   name: formData.name,
@@ -304,23 +250,25 @@ function PartnerTable() {
                   address: formData.address || null,
                   companyName: formData.companyName || null,
                   password: formData.password,
-                  
                   role: 'PARTNER',
                 },
               },
             });
-            console.log("New partner created:", newPartner);
-            alert("Partner created successfully!");
+            alert('Partner created successfully!');
+            setIsAddPartnerModalOpen(false);
             refetch();
           } catch (error) {
-            console.error("Error creating partner:", error.message);
-            alert("Failed to create partner.");
+            console.error(error);
+            alert('Failed to create partner.');
           }
         }}
       />
     </DashboardLayout>
   );
 }
+
+
+
 function EditModal({ partner, onSave, children }) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({

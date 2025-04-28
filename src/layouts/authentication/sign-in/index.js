@@ -32,7 +32,7 @@ import { useAuth } from "context/AuthContext";
 
 
 function Basic() {
-  const {currentUser,setCurentUser}=useAuth()
+  const {currentUser,setCurrentUser}=useAuth()
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -89,7 +89,7 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
       // Now fetch the current user using loadMe
       const { data: userData } = await loadMe({ variables: { token } });
   if (userData && userData.loadMe) {
-        setCurentUser(userData.loadMe); // Store the user data in the context
+    setCurrentUser(userData.loadMe); // Store the user data in the context
         console.log("Current User:", userData.loadMe);
         console.log('currentUser',currentUser)
       }

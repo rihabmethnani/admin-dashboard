@@ -2,13 +2,13 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { gql, useLazyQuery } from '@apollo/client';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
 
-    const LOAD_ME_QUERY = gql`
+  const LOAD_ME_QUERY = gql`
     query LoadMe($token: String!) {
       loadMe(token: $token) {
         _id
@@ -21,38 +21,50 @@ export const AuthProvider = ({ children }) => {
 
   const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
     client: clientMicroservice1,
+    fetchPolicy: 'network-only', // very important: always refetch, don't use cache
   });
 
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [currentUser, setCurrentUser] = useState(null);
 
-    const navigate = useNavigate();
-const [currentUser,setCurentUser]=useState(null)
-const token = localStorage.getItem("access_token"); // Get the token from local storage
   useEffect(() => {
-
-   const loadCurrentUser = async () => {
+    const loadCurrentUser = async () => {
+      const token = localStorage.getItem("access_token"); // Always get the latest token
       if (!token) {
-        navigate("/authentication/sign-in");
-      } else {
-
-        const { data: userData } = await loadMe({ variables: { token } });
-        if (userData && userData.loadMe) {
-          setCurentUser(userData.loadMe); // Store the user data in the context
-          console.log("Current User:", userData.loadMe);
-          console.log('currentUser',currentUser)
-          navigate("/dashboard");
+        setCurrentUser(null);
+        if (location.pathname !== '/authentication/sign-in') {
+          navigate("/authentication/sign-in", { replace: true });
         }
+        return;
+      }
+      try {
+        const { data: userData } = await loadMe({ variables: { token } });
+        if (userData?.loadMe) {
+          setCurrentUser(userData.loadMe);
+        } else {
+          // Token is invalid
+          setCurrentUser(null);
+          navigate("/authentication/sign-in", { replace: true });
+        }
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        setCurrentUser(null);
+        navigate("/authentication/sign-in", { replace: true });
       }
     };
-    loadCurrentUser();
-  }, [token]);
 
+    loadCurrentUser();
+  }, [location.pathname]); // Re-run every time location changes
 
   const logout = () => {
-    setToken(null);
+    localStorage.removeItem("access_token");
+    setCurrentUser(null);
+    navigate("/authentication/sign-in", { replace: true });
   };
 
   return (
-    <AuthContext.Provider value={{ logout,currentUser,setCurentUser }}>
+    <AuthContext.Provider value={{ logout, currentUser, setCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

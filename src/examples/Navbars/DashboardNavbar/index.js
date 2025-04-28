@@ -53,6 +53,7 @@ import {
   setOpenConfigurator,
   setSearchTerm
 } from 'context';
+import { useAuth } from 'context/AuthContext';
 
 function DashboardNavbar({ absolute, light, isMini }) {
   const [navbarType, setNavbarType] = useState();
@@ -67,7 +68,7 @@ function DashboardNavbar({ absolute, light, isMini }) {
   } = controller;
   const [openMenu, setOpenMenu] = useState(false);
   const route = useLocation().pathname.split('/').slice(1);
-
+ const { currentUser,logout } = useAuth();
   useEffect(() => {
     // Setting the navbar type
     if (fixedNavbar) {
@@ -175,11 +176,11 @@ function DashboardNavbar({ absolute, light, isMini }) {
           />
         </MDBox>
             <MDBox color={light ? 'white' : 'inherit'}>
-              <Link to="/authentication/sign-in/basic">
-                <IconButton sx={navbarIconButton} size="small" disableRipple>
-                  <Icon sx={iconsStyle}>account_circle</Icon>
+             
+                <IconButton onClick={()=>logout()} sx={navbarIconButton} size="small" disableRipple>
+                  <Icon sx={iconsStyle}>login</Icon>
                 </IconButton>
-              </Link>
+           
               <IconButton
                 size="small"
                 disableRipple
