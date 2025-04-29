@@ -1,27 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
-import { useQuery, gql, useMutation } from '@apollo/client';
-import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
+import {
+  Grid, Card, Dialog, DialogTitle, DialogContent, DialogActions, Menu, MenuItem,
+  Checkbox, FormControl, InputLabel, Select, Box, TextField
+} from '@mui/material';
+import { useQuery, useMutation, gql } from '@apollo/client';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import HistoryIcon from '@mui/icons-material/History';
 import MDBox from 'components/MDBox';
 import MDTypography from 'components/MDTypography';
+import MDButton from 'components/MDButton';
 import DashboardLayout from 'examples/LayoutContainers/DashboardLayout';
 import DashboardNavbar from 'examples/Navbars/DashboardNavbar';
 import Footer from 'examples/Footer';
 import DataTable from 'examples/Tables/DataTable';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Menu, MenuItem, Checkbox, FormControl, InputLabel, Select, Box } from '@mui/material';
-import MDButton from 'components/MDButton';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import HistoryIcon from '@mui/icons-material/History';
-import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import { clientMicroservice2 } from 'apolloClients/microservice2';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
-import { GET_ORDERS } from 'graphql/queries/orderQueries';
-import { ASSIGN_ORDERS_TO_DRIVER } from 'graphql/queries/orderQueries';
-import { GET_ORDER_HISTORY } from 'graphql/queries/orderQueries';
-import { GET_USERS_BY_ROLE } from 'graphql/queries/orderQueries';
+import { clientMicroservice2 } from 'apolloClients/microservice2';
+import { GET_ORDERS, ASSIGN_ORDERS_TO_DRIVER, GET_ORDER_HISTORY, GET_USERS_BY_ROLE, UPDATE_ORDER_STATUS } from 'graphql/queries/orderQueries';
 
+import DeleteIcon from '@mui/icons-material/Delete';
+import PropTypes from 'prop-types';
 // Requête GraphQL pour récupérer un utilisateur par son ID (microservice 1)
 const GET_USER_BY_ID = gql`
   query GetUserById($id: String!) {
@@ -33,144 +31,164 @@ const GET_USER_BY_ID = gql`
 `;
 
 function OrderTable() {
-  const { loading, error, data, refetch } = useQuery(GET_ORDERS, {
-    client: clientMicroservice2,
-  });
+  const { loading: ordersLoading, data: ordersData, refetch: refetchOrders } = useQuery(GET_ORDERS, { client: clientMicroservice2 });
+  const { data: driversData } = useQuery(GET_USERS_BY_ROLE, { client: clientMicroservice1, variables: { role: 'DRIVER' } });
 
-  const { data: driversData } = useQuery(GET_USERS_BY_ROLE, {
-    client: clientMicroservice1,
-    variables: { role: 'DRIVER' }
-  });
+  const [assignOrdersToDriver] = useMutation(ASSIGN_ORDERS_TO_DRIVER, { client: clientMicroservice2 });
+  const [updateOrderStatus] = useMutation(UPDATE_ORDER_STATUS, { client: clientMicroservice2 });
 
   const [orders, setOrders] = useState([]);
-  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [orderHistory, setOrderHistory] = useState([]);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedDriverId, setSelectedDriverId] = useState('');
-  const [selectedOrders, setSelectedOrders] = useState([]);
   const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [partners, setPartners] = useState({});
   const [drivers, setDrivers] = useState({});
-
-  const [assignOrdersToDriverMutation] = useMutation(ASSIGN_ORDERS_TO_DRIVER, {
-    client: clientMicroservice2,
-  });
-
-  const { data: historyData } = useQuery(GET_ORDER_HISTORY, {
-    variables: { orderId: selectedOrder?._id },
-    skip: !selectedOrder,
-    client: clientMicroservice2,
-  });
-
-  const fetchPartnerName = async (partnerId) => {
-    if (!partnerId || partners[partnerId]) return;
-
-    try {
-      const { data: partnerData } = await clientMicroservice1.query({
-        query: GET_USER_BY_ID,
-        variables: { id: partnerId },
-      });
-
-      setPartners((prevPartners) => ({
-        ...prevPartners,
-        [partnerId]: partnerData.getUserById.name,
-      }));
-    } catch (err) {
-      console.error('Error fetching partner:', err.message);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+  const [isEditStatusModalOpen, setIsEditStatusModalOpen] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  console.log('orders',orders)
+  console.log('availableDrivers',availableDrivers)
+  useEffect(() => {
+    if (driversData?.getUsersByRole) {
+      setAvailableDrivers(driversData.getUsersByRole);
     }
-  };
+  }, [driversData]);
+
+  // useEffect(() => {
+    
+  //   if (ordersData?.orders) {
+  //     fetchUsersAndSetOrders(ordersData.orders);
+  //   }
+  // }, [ordersData]);
 
   const fetchDriverName = async (driverId) => {
     if (!driverId || drivers[driverId]) return;
-
+  
     try {
       const { data: driverData } = await clientMicroservice1.query({
         query: GET_USER_BY_ID,
         variables: { id: driverId },
       });
-
-      setDrivers((prevDrivers) => ({
-        ...prevDrivers,
+  
+      setDrivers((prev) => ({
+        ...prev,
         [driverId]: driverData.getUserById.name,
       }));
     } catch (err) {
       console.error('Error fetching driver:', err.message);
     }
   };
-
-  useEffect(() => {
-    if (driversData && driversData.getAllDrivers) {
-      setAvailableDrivers(driversData.getAllDrivers);
-    }
-  }, [driversData]);
-
-  useEffect(() => {
-    if (data && data.orders) {
-      data.orders.forEach((order) => {
-        if (order.partnerId) {
-          fetchPartnerName(order.partnerId);
-        }
-        if (order.driverId) {
-          fetchDriverName(order.driverId);
-        }
+  
+  const fetchPartnerName = async (partnerId) => {
+    if (!partnerId || partners[partnerId]) return;
+  
+    try {
+      const { data: partnerData } = await clientMicroservice1.query({
+        query: GET_USER_BY_ID,
+        variables: { id: partnerId },
       });
-
-      setOrders(
-        data.orders.map((order, index) => ({
-          _id: order._id,
-          id: index + 1,
-          status: order.status,
-          partner: partners[order.partnerId] || 'N/A',
-          driver: drivers[order.driverId] || 'N/A',
-          action: (
-            <MDBox display="flex" alignItems="center">
-              <MoreVertIcon
-                style={{ cursor: 'pointer' }}
-                onClick={(event) => handleOpenMenu(event, order)}
-              />
-            </MDBox>
-          ),
-          history: (
-            <HistoryIcon
-              style={{ cursor: 'pointer' }}
-              onClick={() => openHistoryModal(order)}
-            />
-          ),
-        }))
-      );
+  
+      setPartners((prev) => ({
+        ...prev,
+        [partnerId]: partnerData.getUserById.name,
+      }));
+    } catch (err) {
+      console.error('Error fetching partner:', err.message);
     }
-  }, [data, partners, drivers]);
-
+  };
+  
   useEffect(() => {
-    if (historyData && historyData.orderHistory) {
-      setOrderHistory(historyData.orderHistory);
+    if (ordersData?.orders) {
+      const fetchUsers = async () => {
+        await Promise.all(
+          ordersData.orders.map(async (order) => {
+            if (order.partnerId) {
+              await fetchPartnerName(order.partnerId);
+            }
+            if (order.driverId) {
+              await fetchDriverName(order.driverId);
+            }
+          })
+        );
+  
+        setOrders(
+          ordersData.orders.map((order, index) => ({
+            _id: order._id,
+            id: index + 1,
+            status: order.status,
+            partner: partners[order.partnerId] || 'N/A',
+            driver: drivers[order.driverId] || 'N/A',
+            action: (
+              <MDBox display="flex" alignItems="center">
+                <EditIcon
+                  color="info"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => handleOpenMenu(e, order)}
+                />
+              </MDBox>
+            ),
+            history: (
+              <HistoryIcon
+                style={{ cursor: 'pointer' }}
+                onClick={() => openHistoryModal(order)}
+              />
+            ),
+          }))
+        );
+      };
+  
+      fetchUsers();
     }
-  }, [historyData]);
-
+  }, [ordersData, partners, drivers]);
+  
   const handleOpenMenu = (event, order) => {
     setAnchorEl(event.currentTarget);
     setSelectedOrder(order);
   };
+  
 
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-  };
+  const handleCloseMenu = () => setAnchorEl(null);
 
-  const handleEdit = (order) => {
-    console.log('Edit:', order);
+  const openEditStatusModal = () => {
+    setIsEditStatusModalOpen(true);
+    setNewStatus(selectedOrder.status);
     handleCloseMenu();
   };
 
-  const handleDelete = (order) => {
-    console.log('Delete:', order);
-    handleCloseMenu();
+  const handleEditStatus = async () => {
+    try {
+      await updateOrderStatus({
+        variables: { orderId: selectedOrder._id, newStatus },
+      });
+      await refetchOrders();
+      setIsEditStatusModalOpen(false);
+      alert('Order status updated successfully.');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status.');
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    try {
+      await assignOrdersToDriver({
+        variables: { orderIds: selectedOrders, driverId: selectedDriverId },
+      });
+      await refetchOrders();
+      setIsBulkAssignModalOpen(false);
+      setSelectedOrders([]);
+      alert('Orders assigned successfully!');
+    } catch (error) {
+      console.error('Error assigning orders:', error);
+      alert('Failed to assign orders.');
+    }
   };
 
   const openBulkAssignModal = () => {
-    if (selectedOrders.length === 0) {
-      alert('Please select at least one order');
+    if (!selectedOrders.length) {
+      alert('Select at least one order.');
       return;
     }
     setIsBulkAssignModalOpen(true);
@@ -178,35 +196,14 @@ function OrderTable() {
 
   const openHistoryModal = (order) => {
     setSelectedOrder(order);
-    setIsHistoryModalOpen(true);
-  };
-
-  const handleBulkAssign = async () => {
-    try {
-      await assignOrdersToDriverMutation({
-        variables: { 
-          orderIds: selectedOrders, 
-          driverId: selectedDriverId
-        },
-      });
-      alert('Orders assigned successfully!');
-      setSelectedOrders([]);
-      refetch();
-    } catch (error) {
-      console.error('Error assigning orders:', error.message);
-      alert('Failed to assign orders: ' + error.message);
-    }
-    setIsBulkAssignModalOpen(false);
+    // You can load history modal data if needed
   };
 
   const handleSelectOrder = (orderId) => {
-    setSelectedOrders(prev => 
-      prev.includes(orderId) 
-        ? prev.filter(id => id !== orderId) 
-        : [...prev, orderId]
+    setSelectedOrders(prev =>
+      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
     );
   };
-
   const statusColors = {
     EN_ATTENTE: 'warning',
     ENTRE_CENTRAL: 'info',
@@ -224,11 +221,11 @@ function OrderTable() {
     EN_ATTENTE_CONFIRMATION: 'warning',
     VERIFICATION: 'info',
   };
-
   const columns = [
     {
       Header: 'Select',
       accessor: '_id',
+      // eslint-disable-next-line react/prop-types
       Cell: ({ value }) => (
         <Checkbox
           checked={selectedOrders.includes(value)}
@@ -241,14 +238,16 @@ function OrderTable() {
     {
       Header: 'Status',
       accessor: 'status',
+      // eslint-disable-next-line react/prop-types
       Cell: ({ value }) => (
-        <MDTypography variant="caption" color={statusColors[value]} fontWeight="medium">
+        <MDTypography variant="caption" color={statusColors[value]}  fontWeight="medium">
           {value}
         </MDTypography>
       ),
+      
       align: 'center',
     },
-    { Header: 'Partner', accessor: 'partner', align: 'center' },
+    { Header: 'Partner',accessor: 'partner', align: 'center' },
     { Header: 'Driver', accessor: 'driver', align: 'center' },
     { Header: 'Action', accessor: 'action', align: 'center' },
     { Header: 'History', accessor: 'history', align: 'center' },
@@ -266,17 +265,14 @@ function OrderTable() {
                   variant="gradient" 
                   color="info"
                   onClick={openBulkAssignModal}
-                  disabled={selectedOrders.length === 0}
+                  disabled={!selectedOrders.length}
                 >
                   Assign Selected Orders
                 </MDButton>
               </MDBox>
               <MDBox pt={3}>
                 <DataTable
-                  table={{
-                    columns,
-                    rows: orders,
-                  }}
+                  table={{ columns, rows: orders }}
                   isSorted={false}
                   entriesPerPage={false}
                   showTotalEntries={false}
@@ -289,74 +285,57 @@ function OrderTable() {
       </MDBox>
       <Footer />
 
-      {/* Modale pour assigner plusieurs commandes à un chauffeur */}
+      {/* Bulk Assign Modal */}
       <Dialog open={isBulkAssignModalOpen} onClose={() => setIsBulkAssignModalOpen(false)}>
-        <DialogTitle>Assign {selectedOrders.length} Orders to Driver</DialogTitle>
+        <DialogTitle>Assign Orders to Driver</DialogTitle>
         <DialogContent>
-          <Box mb={2}>
-            <MDTypography variant="h6">
-              Selected Orders: {selectedOrders.length}
-            </MDTypography>
-          </Box>
           <FormControl fullWidth margin="normal">
-            <InputLabel>Select Driver</InputLabel>
+          
             <Select
               value={selectedDriverId}
               onChange={(e) => setSelectedDriverId(e.target.value)}
-              label="Select Driver"
             >
-              {availableDrivers.map((driver) => (
-                <MenuItem key={driver._id} value={driver._id}>
-                  {driver.name}
-                </MenuItem>
+              {availableDrivers.map(driver => (
+                <MenuItem key={driver._id} value={driver._id}>{driver.name}</MenuItem>
               ))}
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => setIsBulkAssignModalOpen(false)}>Cancel</MDButton>
-          <MDButton 
-            onClick={handleBulkAssign}
-            disabled={!selectedDriverId || selectedOrders.length === 0}
-          >
-            Assign Orders
-          </MDButton>
+          <MDButton onClick={() => setIsBulkAssignModalOpen(false)} color="secondary">Cancel</MDButton>
+          <MDButton onClick={handleBulkAssign} color="info">Assign</MDButton>
         </DialogActions>
       </Dialog>
 
-      {/* Modale pour afficher l'historique */}
-      <Dialog open={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)}>
-        <DialogTitle>Order History</DialogTitle>
+      {/* Edit Status Modal */}
+      <Dialog open={isEditStatusModalOpen} onClose={() => setIsEditStatusModalOpen(false)}>
+        <DialogTitle>Edit Order Status</DialogTitle>
         <DialogContent>
-          <ul>
-            {orderHistory.map((event, index) => (
-              <li key={index}>
-                <strong>{event.event}</strong>: {event.details} ({new Date(event.timestamp).toLocaleString()})
-              </li>
-            ))}
-          </ul>
+          <TextField
+            fullWidth
+            margin="normal"
+            label="New Status"
+            value={newStatus}
+            onChange={(e) => setNewStatus(e.target.value)}
+          />
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => setIsHistoryModalOpen(false)}>Close</MDButton>
+          <MDButton onClick={() => setIsEditStatusModalOpen(false)} color="secondary">Cancel</MDButton>
+          <MDButton onClick={handleEditStatus} color="success">Save</MDButton>
         </DialogActions>
       </Dialog>
 
-      {/* Menu contextuel */}
+      {/* Menu (Edit, Delete) */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
-        <MenuItem onClick={() => handleEdit(selectedOrder)}>
-          <EditIcon style={{ marginRight: 8 }} />
-          Edit
+        <MenuItem onClick={openEditStatusModal}>
+          <EditIcon fontSize="small" />&nbsp; Edit Status
         </MenuItem>
-        <MenuItem onClick={() => handleDelete(selectedOrder)}>
-          <DeleteIcon style={{ marginRight: 8 }} />
-          Delete
+        <MenuItem onClick={() => { console.log('Delete', selectedOrder); handleCloseMenu(); }}>
+          <DeleteIcon fontSize="small" />&nbsp; Delete
         </MenuItem>
       </Menu>
     </DashboardLayout>
   );
 }
-OrderTable.propTypes = {
-  value: PropTypes.string.isRequired, // Exemple : 'value' est une chaîne de caractères requise
-};
 
 export default OrderTable;

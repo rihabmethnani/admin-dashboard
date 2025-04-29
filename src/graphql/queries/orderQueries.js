@@ -14,9 +14,9 @@ export const GET_ORDERS = gql`
   }
 `;
 export const GET_USERS_BY_ROLE = gql`
-  query GetUsersByRole($role: Role!) {
+  query GetUsersByRole($role: String!) {
     getUsersByRole(role: $role) {
-      id
+      _id
       name
       email
       role
