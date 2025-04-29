@@ -47,9 +47,14 @@ export const UPDATE_ORDER_STATUS = gql`
 export const GET_ORDER_HISTORY = gql`
   query GetOrderHistory($orderId: String!) {
     orderHistory(orderId: $orderId) {
-      event
-      details
-      timestamp
+    adminId
+      assisatnAdminId
+driverId
+partnerId
+event
+etatPrecedent
+
+
     }
   }
 `;
