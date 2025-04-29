@@ -1,48 +1,38 @@
-// BasicLayout.js
-
 import PropTypes from 'prop-types';
-
-// @mui material components
 import Grid from '@mui/material/Grid';
-
-// Material Dashboard 2 React components
 import MDBox from 'components/MDBox';
-
-// Material Dashboard 2 React example components
 import PageLayout from 'examples/LayoutContainers/PageLayout';
 
 function BasicLayout({ image, children }) {
   return (
     <PageLayout>
       <MDBox
-        position="absolute"
+        display="flex"
         width="100%"
         minHeight="100vh"
-        sx={{
-          backgroundImage: ({
-            functions: { linearGradient, rgba },
-            palette: { gradients },
-          }) =>
-            image &&
-            `${linearGradient(
-              rgba(gradients.light.main, 0.3), // Fond plus clair ici
-              rgba(gradients.light.state, 0.3)
-            )}, url(${image})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
-      <MDBox px={1} width="100%" height="100vh" mx="auto">
-        <Grid
-          container
-          spacing={1}
-          justifyContent="flex-start"  // Aligne vers la gauche
-          alignItems="center"
-          height="100%"
-          sx={{ ml: 90 }} 
-        >
-          <Grid item xs={11} sm={9} md={5} lg={4} xl={3} sx={{ ml: 10 }}> {/* Décalage vers la droite */}
+        alignItems="center"
+        justifyContent="center"
+        px={2}
+      >
+        <Grid container spacing={6} justifyContent="center" alignItems="center">
+          {/* Colonne pour l'image (visible seulement sur les écrans moyens et grands) */}
+          <Grid item xs={12} md={6} sx={{ display: { xs: 'none', md: 'flex' }, justifyContent: 'center' }}>
+            <MDBox
+              component="img"
+              src={image}
+              alt="Login Image"
+              sx={{
+                maxWidth: '100%',
+                height: 'auto',
+                maxHeight: '70vh',
+                borderRadius: 'lg',
+                boxShadow: 3
+              }}
+            />
+          </Grid>
+          
+          {/* Colonne pour la carte */}
+          <Grid item xs={12} md={5} lg={4}>
             {children}
           </Grid>
         </Grid>
@@ -51,7 +41,6 @@ function BasicLayout({ image, children }) {
   );
 }
 
-// Typechecking props for the BasicLayout
 BasicLayout.propTypes = {
   image: PropTypes.string.isRequired,
   children: PropTypes.node.isRequired,

@@ -26,7 +26,7 @@ import MDButton from "components/MDButton";
 import BasicLayout from "layouts/authentication/components/BasicLayout";
 
 // Images
-import bgImage from "assets/images/backgoundImg.jpg";
+import bgImage from "assets/images/background1.jpg";
 import { clientMicroservice1 } from "apolloClients/microservice1";
 import { useAuth } from "context/AuthContext";
 

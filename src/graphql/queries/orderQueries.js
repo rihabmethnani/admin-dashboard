@@ -35,7 +35,7 @@ export const ASSIGN_ORDERS_TO_DRIVER = gql`
 
 // Mutation pour mettre à jour le statut d'une commande
 export const UPDATE_ORDER_STATUS = gql`
-  mutation UpdateOrderStatus($orderId: String!, $status: String!) {
+  mutation UpdateOrderStatus($orderId: String!, $status: OrderStatus!) {
     updateOrderStatus(orderId: $orderId, status: $status) {
       _id
       status
@@ -46,15 +46,15 @@ export const UPDATE_ORDER_STATUS = gql`
 // Requête pour récupérer l'historique d'une commande
 export const GET_ORDER_HISTORY = gql`
   query GetOrderHistory($orderId: String!) {
-    orderHistory(orderId: $orderId) {
-    adminId
-      assisatnAdminId
-driverId
-partnerId
-event
-etatPrecedent
-
-
+    getOrderHistory(orderId: $orderId) {
+      _id
+      event
+      etatPrecedent
+      timestamp
+      adminId
+      assistantAdminId
+      driverId
+      partnerId
     }
   }
 `;
