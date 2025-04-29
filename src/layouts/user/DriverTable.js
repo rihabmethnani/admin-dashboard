@@ -17,6 +17,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
 import { useAuth } from 'context/AuthContext';
+import { UPDATE_DRIVER } from 'graphql/mutations/userMutations';
 
 // GraphQL Query pour récupérer les chauffeurs
 const GET_DRIVERS = gql`
@@ -81,7 +82,7 @@ function DriverTable() {
   const { searchTerm } = controller;
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false);
 
-  const [updateUserMutation] = useMutation(UPDATE_USER, {
+  const [updateUserMutation] = useMutation(UPDATE_DRIVER, {
       client: clientMicroservice1, // Utilisez le client du microservice 1
     });
   const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, {
@@ -132,23 +133,27 @@ function DriverTable() {
 
   const handleDelete = async (driver) => {
     try {
+      const confirmed = window.confirm("Are you sure you want to delete this driver?");
+      if (!confirmed) return;
+  
       const { data: deletedUser } = await softRemoveUserMutation({
         variables: { id: driver._id },
       });
-
+  
       console.log("Driver deleted:", deletedUser);
-
-      setDrivers((prevDrivers) =>
-        prevDrivers.filter((user) => user._id !== driver._id)
-      );
-
+      
+      // Option 1: Rafraîchir les données depuis le serveur
+      await refetch();
+      
+      // Option 2: Mettre à jour localement (moins recommandé car peut causer des incohérences)
+      // setDrivers(prevDrivers => prevDrivers.filter(d => d.author.props.email !== driver.author.props.email));
+  
       alert("Driver deleted successfully!");
     } catch (error) {
       console.error("Error deleting driver:", error.message);
       alert("Failed to delete driver.");
     }
   };
-
   const handleEdit = async (updatedData) => {
     try {
       if (!updatedData._id) {

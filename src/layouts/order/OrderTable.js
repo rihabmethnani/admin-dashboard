@@ -9,13 +9,18 @@ import DashboardLayout from 'examples/LayoutContainers/DashboardLayout';
 import DashboardNavbar from 'examples/Navbars/DashboardNavbar';
 import Footer from 'examples/Footer';
 import DataTable from 'examples/Tables/DataTable';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Menu, MenuItem, Checkbox, FormControl, InputLabel, Select, Box } from '@mui/material';
 import MDButton from 'components/MDButton';
-import MoreVertIcon from '@mui/icons-material/MoreVert'; // Icône pour le menu contextuel
-import HistoryIcon from '@mui/icons-material/History'; // Icône pour l'historique
-import { ASSIGN_DRIVER_TO_ORDER, GET_ORDER_HISTORY, GET_ORDERS } from 'graphql/queries/orderQueries';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import HistoryIcon from '@mui/icons-material/History';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import { clientMicroservice2 } from 'apolloClients/microservice2';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
+import { GET_ORDERS } from 'graphql/queries/orderQueries';
+import { ASSIGN_ORDERS_TO_DRIVER } from 'graphql/queries/orderQueries';
+import { GET_ORDER_HISTORY } from 'graphql/queries/orderQueries';
+import { GET_USERS_BY_ROLE } from 'graphql/queries/orderQueries';
 
 // Requête GraphQL pour récupérer un utilisateur par son ID (microservice 1)
 const GET_USER_BY_ID = gql`
@@ -32,33 +37,35 @@ function OrderTable() {
     client: clientMicroservice2,
   });
 
+  const { data: driversData } = useQuery(GET_USERS_BY_ROLE, {
+    client: clientMicroservice1,
+    variables: { role: 'DRIVER' }
+  });
+
   const [orders, setOrders] = useState([]);
-  const [isAssignDriverModalOpen, setIsAssignDriverModalOpen] = useState(false);
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [orderHistory, setOrderHistory] = useState([]);
-  const [anchorEl, setAnchorEl] = useState(null); // Pour le menu contextuel
-  const [selectedDriverId, setSelectedDriverId] = useState(''); // Pour l'ID du chauffeur
-
-  // État local pour stocker les noms des partenaires et des chauffeurs
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [availableDrivers, setAvailableDrivers] = useState([]);
   const [partners, setPartners] = useState({});
   const [drivers, setDrivers] = useState({});
 
-  // Mutation pour assigner un chauffeur
-  const [assignDriverMutation] = useMutation(ASSIGN_DRIVER_TO_ORDER, {
+  const [assignOrdersToDriverMutation] = useMutation(ASSIGN_ORDERS_TO_DRIVER, {
     client: clientMicroservice2,
   });
 
-  // Mutation pour récupérer l'historique
   const { data: historyData } = useQuery(GET_ORDER_HISTORY, {
     variables: { orderId: selectedOrder?._id },
     skip: !selectedOrder,
     client: clientMicroservice2,
   });
 
-  // Fonction pour récupérer un partenaire par son ID
   const fetchPartnerName = async (partnerId) => {
-    if (!partnerId || partners[partnerId]) return; // Ne pas recharger si déjà disponible
+    if (!partnerId || partners[partnerId]) return;
 
     try {
       const { data: partnerData } = await clientMicroservice1.query({
@@ -75,9 +82,8 @@ function OrderTable() {
     }
   };
 
-  // Fonction pour récupérer un chauffeur par son ID
   const fetchDriverName = async (driverId) => {
-    if (!driverId || drivers[driverId]) return; // Ne pas recharger si déjà disponible
+    if (!driverId || drivers[driverId]) return;
 
     try {
       const { data: driverData } = await clientMicroservice1.query({
@@ -95,22 +101,29 @@ function OrderTable() {
   };
 
   useEffect(() => {
+    if (driversData && driversData.getAllDrivers) {
+      setAvailableDrivers(driversData.getAllDrivers);
+    }
+  }, [driversData]);
+
+  useEffect(() => {
     if (data && data.orders) {
       data.orders.forEach((order) => {
         if (order.partnerId) {
-          fetchPartnerName(order.partnerId); // Charger les noms des partenaires
+          fetchPartnerName(order.partnerId);
         }
         if (order.driverId) {
-          fetchDriverName(order.driverId); // Charger les noms des chauffeurs
+          fetchDriverName(order.driverId);
         }
       });
 
       setOrders(
         data.orders.map((order, index) => ({
-          id: index + 1, // ID séquentiel
+          _id: order._id,
+          id: index + 1,
           status: order.status,
-          partner: partners[order.partnerId] || 'N/A', // Nom du partenaire
-          driver: drivers[order.driverId] || 'N/A', // Nom du chauffeur
+          partner: partners[order.partnerId] || 'N/A',
+          driver: drivers[order.driverId] || 'N/A',
           action: (
             <MDBox display="flex" alignItems="center">
               <MoreVertIcon
@@ -136,7 +149,6 @@ function OrderTable() {
     }
   }, [historyData]);
 
-  // Gestion du menu contextuel
   const handleOpenMenu = (event, order) => {
     setAnchorEl(event.currentTarget);
     setSelectedOrder(order);
@@ -156,10 +168,12 @@ function OrderTable() {
     handleCloseMenu();
   };
 
-  const openAssignDriverModal = (order) => {
-    setSelectedOrder(order);
-    setIsAssignDriverModalOpen(true);
-    handleCloseMenu();
+  const openBulkAssignModal = () => {
+    if (selectedOrders.length === 0) {
+      alert('Please select at least one order');
+      return;
+    }
+    setIsBulkAssignModalOpen(true);
   };
 
   const openHistoryModal = (order) => {
@@ -167,54 +181,73 @@ function OrderTable() {
     setIsHistoryModalOpen(true);
   };
 
-  const handleAssignDriver = async () => {
+  const handleBulkAssign = async () => {
     try {
-      await assignDriverMutation({
-        variables: { orderId: selectedOrder._id, driverId: selectedDriverId },
+      await assignOrdersToDriverMutation({
+        variables: { 
+          orderIds: selectedOrders, 
+          driverId: selectedDriverId
+        },
       });
-      alert('Driver assigned successfully!');
+      alert('Orders assigned successfully!');
+      setSelectedOrders([]);
       refetch();
     } catch (error) {
-      console.error('Error assigning driver:', error.message);
-      alert('Failed to assign driver.');
+      console.error('Error assigning orders:', error.message);
+      alert('Failed to assign orders: ' + error.message);
     }
-    setIsAssignDriverModalOpen(false);
+    setIsBulkAssignModalOpen(false);
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId) 
+        : [...prev, orderId]
+    );
+  };
 
   const statusColors = {
-    NEW: 'info', // Bleu (nouveau)
-    PENDING: 'warning', // Jaune (en attente)
-    ASSIGNED: 'success', // Vert (assigné)
-    IN_TRANSIT: 'primary', // Bleu foncé (en transit)
-    DELIVERED: 'success', // Vert (livré)
-    FAILED_ATTEMPT: 'error', // Rouge (tentative échouée)
-    RETURNED: 'error', // Rouge (retourné)
-    CANCELLED: 'error', // Rouge (annulé)
-    ON_HOLD: 'warning', // Jaune (en attente)
-    RELAUNCHED: 'info', // Bleu (relancé)
-    DELAYED: 'warning', // Jaune (retardé)
-    PARTIALLY_DELIVERED: 'success', // Vert (partiellement livré)
-    IN_STORAGE: 'secondary', // Gris (en stockage)
-    AWAITING_CONFIRMATION: 'warning', // Jaune (attente de confirmation)
+    EN_ATTENTE: 'warning',
+    ENTRE_CENTRAL: 'info',
+    ASSIGNE: 'success',
+    EN_COURS_LIVRAISON: 'primary',
+    LIVRE: 'success',
+    ECHEC_LIVRAISON: 'error',
+    RETOURNE: 'error',
+    ANNULE: 'error',
+    EN_ATTENTE_RESOLUTION: 'warning',
+    RELANCE: 'info',
+    RETARDE: 'warning',
+    PARTIELLEMENT_LIVRE: 'success',
+    EN_ENTREPOT: 'secondary',
+    EN_ATTENTE_CONFIRMATION: 'warning',
+    VERIFICATION: 'info',
   };
 
   const columns = [
+    {
+      Header: 'Select',
+      accessor: '_id',
+      Cell: ({ value }) => (
+        <Checkbox
+          checked={selectedOrders.includes(value)}
+          onChange={() => handleSelectOrder(value)}
+        />
+      ),
+      align: 'center',
+    },
     { Header: 'ID', accessor: 'id', align: 'center' },
-  /* eslint-disable react/prop-types */
-{
-    Header: 'Status',
-    accessor: 'status',
-    Cell: ({ value }) => (
-      <MDTypography variant="caption" color={statusColors[value]} fontWeight="medium">
-        {value}
-      </MDTypography>
-    ),
-    align: 'center',
-  },
-  /* eslint-enable react/prop-types */
+    {
+      Header: 'Status',
+      accessor: 'status',
+      Cell: ({ value }) => (
+        <MDTypography variant="caption" color={statusColors[value]} fontWeight="medium">
+          {value}
+        </MDTypography>
+      ),
+      align: 'center',
+    },
     { Header: 'Partner', accessor: 'partner', align: 'center' },
     { Header: 'Driver', accessor: 'driver', align: 'center' },
     { Header: 'Action', accessor: 'action', align: 'center' },
@@ -228,6 +261,16 @@ function OrderTable() {
         <Grid container spacing={6}>
           <Grid item xs={12}>
             <Card>
+              <MDBox p={2} display="flex" justifyContent="flex-end">
+                <MDButton 
+                  variant="gradient" 
+                  color="info"
+                  onClick={openBulkAssignModal}
+                  disabled={selectedOrders.length === 0}
+                >
+                  Assign Selected Orders
+                </MDButton>
+              </MDBox>
               <MDBox pt={3}>
                 <DataTable
                   table={{
@@ -246,19 +289,38 @@ function OrderTable() {
       </MDBox>
       <Footer />
 
-      {/* Modale pour assigner un chauffeur */}
-      <Dialog open={isAssignDriverModalOpen} onClose={() => setIsAssignDriverModalOpen(false)}>
-        <DialogTitle>Assign Driver</DialogTitle>
+      {/* Modale pour assigner plusieurs commandes à un chauffeur */}
+      <Dialog open={isBulkAssignModalOpen} onClose={() => setIsBulkAssignModalOpen(false)}>
+        <DialogTitle>Assign {selectedOrders.length} Orders to Driver</DialogTitle>
         <DialogContent>
-          <input
-            type="text"
-            placeholder="Enter Driver ID"
-            onChange={(e) => setSelectedDriverId(e.target.value)}
-          />
+          <Box mb={2}>
+            <MDTypography variant="h6">
+              Selected Orders: {selectedOrders.length}
+            </MDTypography>
+          </Box>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Select Driver</InputLabel>
+            <Select
+              value={selectedDriverId}
+              onChange={(e) => setSelectedDriverId(e.target.value)}
+              label="Select Driver"
+            >
+              {availableDrivers.map((driver) => (
+                <MenuItem key={driver._id} value={driver._id}>
+                  {driver.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => setIsAssignDriverModalOpen(false)}>Cancel</MDButton>
-          <MDButton onClick={handleAssignDriver}>Save</MDButton>
+          <MDButton onClick={() => setIsBulkAssignModalOpen(false)}>Cancel</MDButton>
+          <MDButton 
+            onClick={handleBulkAssign}
+            disabled={!selectedDriverId || selectedOrders.length === 0}
+          >
+            Assign Orders
+          </MDButton>
         </DialogActions>
       </Dialog>
 
@@ -281,12 +343,20 @@ function OrderTable() {
 
       {/* Menu contextuel */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleCloseMenu}>
-        <MenuItem onClick={() => handleEdit(selectedOrder)}>Edit</MenuItem>
-        <MenuItem onClick={() => handleDelete(selectedOrder)}>Delete</MenuItem>
-        <MenuItem onClick={() => openAssignDriverModal(selectedOrder)}>Assign Driver</MenuItem>
+        <MenuItem onClick={() => handleEdit(selectedOrder)}>
+          <EditIcon style={{ marginRight: 8 }} />
+          Edit
+        </MenuItem>
+        <MenuItem onClick={() => handleDelete(selectedOrder)}>
+          <DeleteIcon style={{ marginRight: 8 }} />
+          Delete
+        </MenuItem>
       </Menu>
     </DashboardLayout>
   );
 }
+OrderTable.propTypes = {
+  value: PropTypes.string.isRequired, // Exemple : 'value' est une chaîne de caractères requise
+};
 
 export default OrderTable;

@@ -17,6 +17,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useMaterialUIController } from 'context';
 import { clientMicroservice1 } from 'apolloClients/microservice1';
 import { useAuth } from 'context/AuthContext';
+import { VALIDATE_PARTNER } from 'graphql/mutations/userMutations';
 
 // GraphQL Query pour récupérer les partenaires
 const GET_PARTNERS = gql`
@@ -96,6 +97,9 @@ function PartnerTable() {
   const [createPartnerMutation] = useMutation(CREATE_PARTNER, {
     client: clientMicroservice1,
   });
+  const [validatePartnerMutation] = useMutation(VALIDATE_PARTNER, {
+    client: clientMicroservice1,
+  });
 
   useEffect(() => {
     if (data && data.getUsersByRole) {
@@ -111,7 +115,24 @@ function PartnerTable() {
           ),
           phone: partner.phone || 'N/A',
           address: partner.address || 'N/A',
-          companyName: partner.companyName || 'N/A', // Ajoutez le nom de l'entreprise
+          companyName: partner.companyName || 'N/A',
+          isValid: partner.isValid ? (
+            <MDTypography variant="caption" color="success" fontWeight="medium">
+              Validé
+            </MDTypography>
+          ) : (
+            <MDButton
+              variant="gradient"
+              color="success"
+              size="small"
+              onClick={(e) => {
+                e.preventDefault();
+                handleValidate(partner._id);
+              }}
+            >
+              Valider
+            </MDButton>
+          ),
           action: (
             <MDBox display="flex" gap={1}>
               <EditModal partner={partner} onSave={handleEdit}>
@@ -131,12 +152,25 @@ function PartnerTable() {
       );
     }
   }, [data]);
-
   const filteredPartners = partners.filter((partner) =>
     partner.author.props.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     partner.author.props.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  const handleValidate = async (partnerId) => {
+    try {
+      const { data: validatedPartner } = await validatePartnerMutation({
+        variables: { partnerId },
+      });
+  
+      console.log("Partner validated:", validatedPartner);
+      alert("Partner validated successfully!");
+      refetch(); // Rafraîchir les données
+    } catch (error) {
+      console.error("Error validating partner:", error.message);
+      alert("Failed to validate partner.");
+    }
+  };
+  
   const handleDelete = async (partner) => {
     const confirmed = window.confirm("Are you sure you want to delete this partner?");
     if (!confirmed) return;
@@ -194,18 +228,22 @@ function PartnerTable() {
   const {currentUser}=useAuth()
   const columns = [
     { Header: 'ID', accessor: 'id', align: 'center' },
-    { Header: 'Author', accessor: 'author', width: '45%', align: 'left' },
+    { Header: 'Author', accessor: 'author', width: '30%', align: 'left' },
     { Header: 'Phone', accessor: 'phone', align: 'center' },
     { Header: 'Address', accessor: 'address', align: 'left' },
-    { Header: 'Company Name', accessor: 'companyName', align: 'left' }, 
+    { Header: 'Company Name', accessor: 'companyName', align: 'left' },
+    { Header: 'Statut', accessor: 'isValid', align: 'center' },
     { Header: 'Action', accessor: 'action', align: 'center' },
   ];
-  const unpermissionedColumns = [    { Header: 'ID', accessor: 'id', align: 'center' },
-    { Header: 'Author', accessor: 'author', width: '45%', align: 'left' },
+  
+  const unpermissionedColumns = [
+    { Header: 'ID', accessor: 'id', align: 'center' },
+    { Header: 'Author', accessor: 'author', width: '30%', align: 'left' },
     { Header: 'Phone', accessor: 'phone', align: 'center' },
     { Header: 'Address', accessor: 'address', align: 'left' },
-    { Header: 'Company Name', accessor: 'companyName', align: 'left' }, 
-   ]
+    { Header: 'Company Name', accessor: 'companyName', align: 'left' },
+    { Header: 'Statut', accessor: 'isValid', align: 'center' },
+  ];
   const permissionColumns = currentUser?.role === "ADMIN" ? columns : unpermissionedColumns
 
   return (

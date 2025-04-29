@@ -1,19 +1,5 @@
-/**
-=========================================================
-* Material Dashboard 2 React - v2.2.0
-=========================================================
+// BasicLayout.js
 
-* Product Page: https://www.creative-tim.com/product/material-dashboard-react
-* Copyright 2023 Creative Tim (https://www.creative-tim.com)
-
-Coded by www.creative-tim.com
-
- =========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-*/
-
-// prop-types is a library for typechecking of props
 import PropTypes from 'prop-types';
 
 // @mui material components
@@ -23,23 +9,11 @@ import Grid from '@mui/material/Grid';
 import MDBox from 'components/MDBox';
 
 // Material Dashboard 2 React example components
-import DefaultNavbar from 'examples/Navbars/DefaultNavbar';
 import PageLayout from 'examples/LayoutContainers/PageLayout';
-
-// Authentication pages components
-import Footer from 'layouts/authentication/components/Footer';
 
 function BasicLayout({ image, children }) {
   return (
     <PageLayout>
-      {/* <DefaultNavbar
-        action={{
-          type: 'external',
-          route: 'https://creative-tim.com/product/material-dashboard-react',
-          label: 'free download',
-          color: 'dark',
-        }}
-      /> */}
       <MDBox
         position="absolute"
         width="100%"
@@ -51,8 +25,8 @@ function BasicLayout({ image, children }) {
           }) =>
             image &&
             `${linearGradient(
-              rgba(gradients.dark.main, 0.6),
-              rgba(gradients.dark.state, 0.6)
+              rgba(gradients.light.main, 0.3), // Fond plus clair ici
+              rgba(gradients.light.state, 0.3)
             )}, url(${image})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -63,16 +37,16 @@ function BasicLayout({ image, children }) {
         <Grid
           container
           spacing={1}
-          justifyContent="center"
+          justifyContent="flex-start"  // Aligne vers la gauche
           alignItems="center"
           height="100%"
+          sx={{ ml: 90 }} 
         >
-          <Grid item xs={11} sm={9} md={5} lg={4} xl={3}>
+          <Grid item xs={11} sm={9} md={5} lg={4} xl={3} sx={{ ml: 10 }}> {/* Décalage vers la droite */}
             {children}
           </Grid>
         </Grid>
       </MDBox>
-      {/* <Footer light /> */}
     </PageLayout>
   );
 }

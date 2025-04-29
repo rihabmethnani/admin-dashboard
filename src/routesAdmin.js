@@ -97,14 +97,14 @@ const routesAdmin = [
     route: '/drivers',
     component: <DriverTable />, // Utilisez le composant DriverTable
   },
-  // {
-  //   type: 'collapse',
-  //   name: 'Orders',
-  //   key: 'orders',
-  //   icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
-  //   route: '/orders',
-  //   component: <OrderTable />, // Utilisez le composant OrderTable
-  // },
+  {
+    type: 'collapse',
+    name: 'Orders',
+    key: 'orders',
+    icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
+    route: '/orders',
+    component: <OrderTable />, // Utilisez le composant OrderTable
+  },
   // {
   //   type: 'collapse',
   //   name: 'Tables',

@@ -65,8 +65,8 @@ const colors = {
   },
 
   warning: {
-    main: '#fb8c00',
-    focus: '#fc9d26',
+    main: '#a53204',
+    focus: '#a53204',
   },
 
   error: {

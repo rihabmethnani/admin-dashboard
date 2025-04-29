@@ -13,16 +13,24 @@ export const GET_ORDERS = gql`
     }
   }
 `;
-
-// Mutation pour assigner un chauffeur à une commande
-export const ASSIGN_DRIVER_TO_ORDER = gql`
-  mutation AssignDriverToOrder($orderId: String!, $driverId: String!) {
-    assignOrderToDriver(orderId: $orderId, driverId: $driverId) {
-      _id
-      status
-      driverId
+export const GET_USERS_BY_ROLE = gql`
+  query GetUsersByRole($role: Role!) {
+    getUsersByRole(role: $role) {
+      id
+      name
+      email
+      role
     }
   }
+`;
+// Mutation pour assigner un chauffeur à une commande
+export const ASSIGN_ORDERS_TO_DRIVER = gql`
+  mutation AssignOrdersToDriver($orderIds: [String!]!, $driverId: String!) {
+  assignOrdersToDriver(orderIds: $orderIds, driverId: $driverId) {
+    _id
+    driverId
+  }
+}
 `;
 
 // Mutation pour mettre à jour le statut d'une commande

@@ -26,7 +26,7 @@ import MDButton from "components/MDButton";
 import BasicLayout from "layouts/authentication/components/BasicLayout";
 
 // Images
-import bgImage from "assets/images/background.jpg";
+import bgImage from "assets/images/backgoundImg.jpg";
 import { clientMicroservice1 } from "apolloClients/microservice1";
 import { useAuth } from "context/AuthContext";
 
@@ -105,9 +105,9 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
       <Card>
         <MDBox
           variant="gradient"
-          bgColor="info"
+          bgColor="warning"
           borderRadius="lg"
-          coloredShadow="info"
+          //coloredShadow="none"
           mx={2}
           mt={-3}
           p={2}
@@ -168,7 +168,7 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
               </MDTypography>
             </MDBox>
             <MDBox mt={4} mb={1}>
-              <MDButton variant="gradient" color="info" fullWidth type="submit">
+              <MDButton variant="gradient" color="warning" fullWidth type="submit">
                 {loading ? "Signing in..." : "Sign in"}
               </MDButton>
             </MDBox>
