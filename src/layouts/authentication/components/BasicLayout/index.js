@@ -26,7 +26,7 @@ function BasicLayout({ image, children }) {
                 height: 'auto',
                 maxHeight: '70vh',
                 borderRadius: 'lg',
-                boxShadow: 3
+            
               }}
             />
           </Grid>
