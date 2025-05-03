@@ -28,16 +28,45 @@ import Icon from '@mui/material/Icon';
 // Material Dashboard 2 React components
 import MDBox from 'components/MDBox';
 import MDTypography from 'components/MDTypography';
+import { useState } from 'react';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import { useMutation } from '@apollo/client';
 
 // Material Dashboard 2 React base styles
 import colors from 'assets/theme/base/colors';
 import typography from 'assets/theme/base/typography';
+import { useAuth } from 'context/AuthContext';
+import { gql } from '@apollo/client';
 
+
+
+export const UPDATE_PROFILE = gql`
+  mutation updateSuperAdminProfile($updateUserDto: UpdateUserDto!) {
+    updateSuperAdminProfile(updateUserDto: $updateUserDto) {
+      _id
+      name
+      email
+      phone
+      address
+      image
+    }
+  }
+`;
 function ProfileInfoCard({ title, description, info, social, action, shadow }) {
+
+  const [open, setOpen] = useState(false);
+
+
+  const {currentUser,setCurentUser}=useAuth()
+
   const labels = [];
   const values = [];
-  const { socialMediaColors } = colors;
-  const { size } = typography;
+
 
   // Convert this form `objectKey` of the object key in to this `object key`
   Object.keys(info).forEach((el) => {
@@ -73,49 +102,53 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
     </MDBox>
   ));
 
-  // Render the card social media icons
-  const renderSocial = social.map(({ link, icon, color }) => (
-    <MDBox
-      key={color}
-      component="a"
-      href={link}
-      target="_blank"
-      rel="noreferrer"
-      fontSize={size.lg}
-      color={socialMediaColors[color].main}
-      pr={1}
-      pl={0.5}
-      lineHeight={1}
-    >
-      {icon}
-    </MDBox>
-  ));
+  const [formValues, setFormValues] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    image: '',
+  });
+
+  const [updateProfile, { loading, error, data }] = useMutation(UPDATE_PROFILE);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await updateProfile({ variables: { updateUserDto: formValues } });
+
+      alert('Profile updated successfully!');
+    } catch (err) {
+      console.error('Update failed', err);
+    }
+  };
+
 
   return (
     <Card sx={{ height: '100%', boxShadow: !shadow && 'none' }}>
       <MDBox
         display="flex"
-        justifyContent="space-between"
+        justifyContent="flex-end"
         alignItems="center"
         pt={2}
         px={2}
       >
-        <MDTypography
-          variant="h6"
-          fontWeight="medium"
-          textTransform="capitalize"
-        >
-          {title}
-        </MDTypography>
+      
         <MDTypography
           component={Link}
           to={action.route}
           variant="body2"
           color="secondary"
         >
-          <Tooltip title={action.tooltip} placement="top">
-            <Icon>edit</Icon>
-          </Tooltip>
+         <Tooltip title={action.tooltip} placement="top">
+  <Icon onClick={() => setOpen(true)} style={{ cursor: 'pointer' }}>edit</Icon>
+</Tooltip>
+
         </MDTypography>
       </MDBox>
       <MDBox p={2}>
@@ -129,18 +162,59 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
         </MDBox>
         <MDBox>
           {renderItems}
-          <MDBox display="flex" py={1} pr={2}>
-            <MDTypography
-              variant="button"
-              fontWeight="bold"
-              textTransform="capitalize"
-            >
-              social: &nbsp;
-            </MDTypography>
-            {renderSocial}
-          </MDBox>
+       
         </MDBox>
       </MDBox>
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+  <DialogTitle>Edit Profile</DialogTitle>
+  <DialogContent>
+    <TextField
+      margin="dense"
+      label="Name"
+      name="name"
+      value={formValues.name}
+      onChange={handleChange}
+      fullWidth
+    />
+    <TextField
+      margin="dense"
+      label="Email"
+      name="email"
+      value={formValues.email}
+      onChange={handleChange}
+      fullWidth
+    />
+    <TextField
+      margin="dense"
+      label="Phone"
+      name="phone"
+      value={formValues.phone}
+      onChange={handleChange}
+      fullWidth
+    />
+    <TextField
+      margin="dense"
+      label="Address"
+      name="address"
+      value={formValues.address}
+      onChange={handleChange}
+      fullWidth
+    />
+    <TextField
+      margin="dense"
+      label="Image URL"
+      name="image"
+      value={formValues.image}
+      onChange={handleChange}
+      fullWidth
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setOpen(false)} color="secondary">Cancel</Button>
+    <Button onClick={handleSubmit} color="primary">Save</Button>
+  </DialogActions>
+</Dialog>
+
     </Card>
   );
 }

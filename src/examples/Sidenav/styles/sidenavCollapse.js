@@ -24,11 +24,8 @@ function collapseItem(theme, ownerState) {
   const { pxToRem, rgba, linearGradient } = functions;
 
   return {
-    background: active
-      ? linearGradient(
-          gradients[sidenavColor].main,
-          gradients[sidenavColor].state
-        )
+    background: active?
+'#fba230'
       : transparent.main,
     color:
       (transparentSidenav && !darkMode && !active) || (whiteSidenav && !active)

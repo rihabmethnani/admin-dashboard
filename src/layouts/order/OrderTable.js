@@ -445,7 +445,7 @@ function OrderTable() {
         </DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="normal">
-            <InputLabel>New Status</InputLabel>
+         
             <Select
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value)}

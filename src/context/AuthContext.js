@@ -14,6 +14,8 @@ export const AuthProvider = ({ children }) => {
         _id
         name
         email
+        phone
+        address
         role
       }
     }

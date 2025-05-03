@@ -144,7 +144,8 @@ function PartnerTable() {
       .filter((partner) =>
         partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         partner.email.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      )    .slice() // create a shallow copy to avoid mutating the original array
+      .reverse()
       .map((partner, index) => ({
         id: index + 1,
         author: <Author image={partner.image || null} name={partner.name} email={partner.email} />,

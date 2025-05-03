@@ -50,28 +50,31 @@ import team1 from 'assets/images/team-1.jpg';
 import team2 from 'assets/images/team-2.jpg';
 import team3 from 'assets/images/team-3.jpg';
 import team4 from 'assets/images/team-4.jpg';
+import { useAuth } from 'context/AuthContext';
 
 function Overview() {
+  const {currentUser,setCurentUser}=useAuth()
+
   return (
     <DashboardLayout>
-      <DashboardNavbar />
-      <MDBox mb={2} />
+      {/* <DashboardNavbar /> */}
+      {/* <MDBox mb={2} /> */}
       <Header>
         <MDBox mt={5} mb={3}>
-          <Grid container spacing={1}>
-            <Grid item xs={12} md={6} xl={4}>
+          
+            {/* <Grid item xs={12} md={6} xl={4}>
               <PlatformSettings />
-            </Grid>
-            <Grid item xs={12} md={6} xl={4} sx={{ display: 'flex' }}>
+            </Grid> */}
+            
               <Divider orientation="vertical" sx={{ ml: -2, mr: 1 }} />
               <ProfileInfoCard
                 title="profile information"
-                description="Hi, I’m Alec Thompson, Decisions: If you can’t decide, the answer is no. If two equally difficult paths, choose the one more painful in the short term (pain avoidance is creating an illusion of equality)."
                 info={{
-                  fullName: 'Alec M. Thompson',
-                  mobile: '(44) 123 1234 123',
-                  email: 'alecthompson@mail.com',
-                  location: 'USA',
+                  fullName: `${currentUser.name}`,
+                  mobile: `${currentUser.phone?currentUser.phone:'--'}`,
+                  email:`${currentUser.email}`,
+                  location: `${currentUser.address?currentUser.address:'--'}`,
+                  
                 }}
                 social={[
                   {
@@ -94,17 +97,17 @@ function Overview() {
                 shadow={false}
               />
               <Divider orientation="vertical" sx={{ mx: 0 }} />
-            </Grid>
-            <Grid item xs={12} xl={4}>
+                
+            {/* <Grid item xs={12} xl={4}>
               <ProfilesList
                 title="conversations"
                 profiles={profilesListData}
                 shadow={false}
               />
-            </Grid>
-          </Grid>
+            </Grid> */}
+          
         </MDBox>
-        <MDBox pt={2} px={2} lineHeight={1.25}>
+        {/* <MDBox pt={2} px={2} lineHeight={1.25}>
           <MDTypography variant="h6" fontWeight="medium">
             Projects
           </MDTypography>
@@ -197,9 +200,9 @@ function Overview() {
               />
             </Grid>
           </Grid>
-        </MDBox>
+        </MDBox> */}
       </Header>
-      <Footer />
+      {/* <Footer /> */}
     </DashboardLayout>
   );
 }
