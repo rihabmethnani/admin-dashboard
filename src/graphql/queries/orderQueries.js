@@ -1,4 +1,3 @@
-// src/graphql/queries/orderQueries.js
 
 import { gql } from '@apollo/client';
 
@@ -43,18 +42,18 @@ export const UPDATE_ORDER_STATUS = gql`
   }
 `;
 
-// Requête pour récupérer l'historique d'une commande
+
 export const GET_ORDER_HISTORY = gql`
-  query GetOrderHistory($orderId: String!) {
-    getOrderHistory(orderId: $orderId) {
-      _id
+  query orderHistory($orderId: String!) {
+    orderHistory(orderId: $orderId) {
+      driverId
+      adminId
+      assisatnAdminId
+      partnerId
       event
       etatPrecedent
       timestamp
-      adminId
-      assistantAdminId
-      driverId
-      partnerId
     }
   }
-`;
+`
+
