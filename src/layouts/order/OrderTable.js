@@ -40,7 +40,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import { useSnackbar } from "notistack"
 import OrderHistoryModal from "./OrderHistoryModal"
 import EditStatusModal from "./EditStatusModal"
-
+import { useAuth } from "context/AuthContext"
 const ORDER_STATUSES = [
   "EN_ATTENTE",
   "ENTRE_CENTRAL",
@@ -78,7 +78,7 @@ function OrderTable() {
     client: clientMicroservice1,
     variables: { role: "DRIVER" },
   })
-
+const {currentUser}=useAuth()
   const [assignOrdersToDriver] = useMutation(ASSIGN_ORDERS_TO_DRIVER, { client: clientMicroservice2 })
   const [updateOrderStatus] = useMutation(UPDATE_ORDER_STATUS, { client: clientMicroservice2 })
   const [history, setHistory] = useState([])
@@ -378,14 +378,17 @@ function OrderTable() {
           <Grid item xs={12}>
             <Card>
               <MDBox p={2} display="flex" justifyContent="flex-end">
+                {(currentUser?.role==="ADMIN" || currentUser?.role=== "ADMIN_ASSISTANT") && 
                 <MDButton
                   variant="gradient"
-                  color="info"
+                  color="warning"
                   onClick={openBulkAssignModal}
                   disabled={!selectedOrders.length}
                 >
                   Assign Selected Orders
                 </MDButton>
+
+                }
               </MDBox>
               <MDBox pt={3}>
                 <DataTable
@@ -400,7 +403,7 @@ function OrderTable() {
           </Grid>
         </Grid>
       </MDBox>
-      <Footer />
+      {/* <Footer /> */}
 
       {/* Bulk Assign Modal */}
       <Dialog open={isBulkAssignModalOpen} onClose={() => setIsBulkAssignModalOpen(false)}>

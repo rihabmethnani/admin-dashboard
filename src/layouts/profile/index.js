@@ -54,6 +54,7 @@ import { useAuth } from 'context/AuthContext';
 
 function Overview() {
   const {currentUser,setCurentUser}=useAuth()
+  console.log('current user ',currentUser)
 
   return (
     <DashboardLayout>
@@ -70,10 +71,10 @@ function Overview() {
               <ProfileInfoCard
                 title="profile information"
                 info={{
-                  fullName: `${currentUser.name}`,
-                  mobile: `${currentUser.phone?currentUser.phone:'--'}`,
-                  email:`${currentUser.email}`,
-                  location: `${currentUser.address?currentUser.address:'--'}`,
+                  fullName: `${currentUser?.name}`,
+                  mobile: `${currentUser?.phone ? currentUser.phone:'--'}`,
+                  email:`${currentUser?.email}`,
+                  location: `${currentUser?.address ? currentUser.address:'--'}`,
                   
                 }}
                 social={[

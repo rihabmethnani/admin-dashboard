@@ -53,6 +53,7 @@ import DriverTable from 'layouts/user/DriverTable';
 import AdminTable from 'layouts/user/AdminTable';
 import OrderTable from 'layouts/order/OrderTable';
 import { useAuth } from 'context/AuthContext';
+import AssistantAdminTable from 'layouts/user/AssistantAdminTable';
   // const {currentUser,setCurentUser}=useAuth()
   // console.log("Curraaaaaent User:", currentUser);
 const routesSuperadmin = [
@@ -63,6 +64,14 @@ const routesSuperadmin = [
     icon: <Icon fontSize="small">dashboard</Icon>,
     route: '/dashboard',
     component: <Dashboard />,
+  },
+  {
+    type: 'collapse',
+    name: 'Assistant Admins',
+    key: 'admins',
+    icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
+    route: '/assistant-admins',
+    component: <AssistantAdminTable />, // Utilisez le composant AdminLayout
   },
   {
     type: 'collapse',

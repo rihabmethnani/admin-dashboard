@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(null);
+  console.log(currentUser)
 
   useEffect(() => {
     const loadCurrentUser = async () => {

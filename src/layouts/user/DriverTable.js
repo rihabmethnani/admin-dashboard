@@ -199,7 +199,7 @@ function DriverTable() {
     { Header: 'Address', accessor: 'address', align: 'left' },
 
   ];
-  const permesionColuns = currentUser?.role==="ADMIN" ? columns : unpermessionColumns
+  const permesionColuns = (currentUser?.role==="ADMIN" || currentUser?.role==='ADMIN_ASSISTANT') ? columns : unpermessionColumns
   console.log(currentUser?.role)
 
   return (
@@ -219,10 +219,10 @@ function DriverTable() {
           </MDTypography>
 
           {/* Bouton pour ajouter un chauffeur */}
-          { currentUser?.role==="ADMIN" &&
+          { (currentUser?.role==="ADMIN" || currentUser?.role=== "ADMIN_ASSISTANT") &&
           <MDButton
             variant="gradient"
-            color="info"
+            color="warning"
             onClick={() => setIsAddDriverModalOpen(true)}
           >
             Add Driver

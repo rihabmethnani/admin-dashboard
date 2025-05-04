@@ -53,6 +53,7 @@ import DriverTable from 'layouts/user/DriverTable';
 import AdminTable from 'layouts/user/AdminTable';
 import OrderTable from 'layouts/order/OrderTable';
 import { useAuth } from 'context/AuthContext';
+import CourseTable from 'layouts/user/CourseTabel';
   // const {currentUser,setCurentUser}=useAuth()
   // console.log("Curraaaaaent User:", currentUser);
 const routesAssistantAdmin = [
@@ -64,14 +65,14 @@ const routesAssistantAdmin = [
     route: '/dashboard',
     component: <Dashboard />,
   },
-  {
-    type: 'collapse',
-    name: 'Admins',
-    key: 'admins',
-    icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
-    route: '/admins',
-    component: <AdminTable />, // Utilisez le composant AdminLayout
-  },
+  // {
+  //   type: 'collapse',
+  //   name: 'Admins',
+  //   key: 'admins',
+  //   icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
+  //   route: '/admins',
+  //   component: <AdminTable />, // Utilisez le composant AdminLayout
+  // },
 
   {
     type: 'collapse',
@@ -97,22 +98,22 @@ const routesAssistantAdmin = [
     route: '/drivers',
     component: <DriverTable />, // Utilisez le composant DriverTable
   },
-  // {
-  //   type: 'collapse',
-  //   name: 'Orders',
-  //   key: 'orders',
-  //   icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
-  //   route: '/orders',
-  //   component: <OrderTable />, // Utilisez le composant OrderTable
-  // },
-  // {
-  //   type: 'collapse',
-  //   name: 'Tables',
-  //   key: 'tables',
-  //   icon: <Icon fontSize="small">table_view</Icon>,
-  //   route: '/tables',
-  //   component: <Tables />,
-  // },
+  {
+    type: 'collapse',
+    name: 'Orders',
+    key: 'orders',
+    icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
+    route: '/orders',
+    component: <OrderTable />, // Utilisez le composant OrderTable
+  },
+  {
+    type: 'collapse',
+    name: 'Course',
+    key: 'tables',
+    icon: <Icon fontSize="small">receipt_long</Icon>,
+    route: '/Course',
+    component: <CourseTable/>,
+  },
   // {
   //   type: 'collapse',
   //   name: 'Billing',
@@ -137,14 +138,14 @@ const routesAssistantAdmin = [
   //   route: '/notifications',
   //   component: <Notifications />,
   // },
-  // {
-  //   type: 'collapse',
-  //   name: 'Profile',
-  //   key: 'profile',
-  //   icon: <Icon fontSize="small">person</Icon>,
-  //   route: '/profile',
-  //   component: <Profile />,
-  // },
+  {
+    type: 'collapse',
+    name: 'Profile',
+    key: 'profile',
+    icon: <Icon fontSize="small">person</Icon>,
+    route: '/profile',
+    component: <Profile />,
+  },
   {
     type: 'collapse',
     name: 'Sign Out',

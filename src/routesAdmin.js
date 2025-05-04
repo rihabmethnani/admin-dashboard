@@ -37,22 +37,16 @@ Coded by www.creative-tim.com
 
 // Material Dashboard 2 React layouts
 import Dashboard from 'layouts/dashboard';
-import Tables from 'layouts/tables';
-import Billing from 'layouts/billing';
-import RTL from 'layouts/rtl';
-import Notifications from 'layouts/notifications';
 import Profile from 'layouts/profile';
 import SignIn from 'layouts/authentication/sign-in';
-import SignUp from 'layouts/authentication/sign-up';
 
 // @mui icons
 import Icon from '@mui/material/Icon';
 import PartnerTable from 'layouts/user/PartnerTable';
-import ClientTable from 'layouts/user/ClientTable';
 import DriverTable from 'layouts/user/DriverTable';
-import AdminTable from 'layouts/user/AdminTable';
 import OrderTable from 'layouts/order/OrderTable';
-import { useAuth } from 'context/AuthContext';
+import CourseTable from 'layouts/user/CourseTabel';
+import AssistantAdminTable from 'layouts/user/AssistantAdminTable';
   // const {currentUser,setCurentUser}=useAuth()
   // console.log("Curraaaaaent User:", currentUser);
 const routesAdmin = [
@@ -64,14 +58,14 @@ const routesAdmin = [
     route: '/dashboard',
     component: <Dashboard />,
   },
-  // {
-  //   type: 'collapse',
-  //   name: 'Admins',
-  //   key: 'admins',
-  //   icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
-  //   route: '/admins',
-  //   component: <AdminTable />, // Utilisez le composant AdminLayout
-  // },
+  {
+    type: 'collapse',
+    name: 'Assistant Admins',
+    key: 'admins',
+    icon: <Icon fontSize="small">supervisor_account</Icon>, // Icône pour les administrateurs
+    route: '/assistant-admins',
+    component: <AssistantAdminTable />, // Utilisez le composant AdminLayout
+  },
 
   {
     type: 'collapse',
@@ -81,14 +75,7 @@ const routesAdmin = [
     route: '/partners',
     component: <PartnerTable />, // Utilisez le composant PartnerTable
   },
-  // {
-  //   type: 'collapse',
-  //   name: 'Clients',
-  //   key: 'clients',
-  //   icon: <Icon fontSize="small">people</Icon>, // Icône pour les clients
-  //   route: '/clients',
-  //   component: <ClientTable />, // Utilisez le composant ClientTable
-  // },
+  
   {
     type: 'collapse',
     name: 'Drivers',
@@ -105,14 +92,14 @@ const routesAdmin = [
     route: '/orders',
     component: <OrderTable />, // Utilisez le composant OrderTable
   },
-  // {
-  //   type: 'collapse',
-  //   name: 'Tables',
-  //   key: 'tables',
-  //   icon: <Icon fontSize="small">table_view</Icon>,
-  //   route: '/tables',
-  //   component: <Tables />,
-  // },
+  {
+    type: 'collapse',
+    name: 'Course',
+    key: 'tables',
+    icon: <Icon fontSize="small">receipt_long</Icon>,
+    route: '/Course',
+    component: <CourseTable/>,
+  },
   // {
   //   type: 'collapse',
   //   name: 'Billing',

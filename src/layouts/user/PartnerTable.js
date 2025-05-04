@@ -158,6 +158,7 @@ function PartnerTable() {
           </MDTypography>
         ) : (
           <MDButton
+            disabled={currentUser?.role === 'SUPER_ADMIN'}
             variant="gradient"
             color="success"
             size="small"
@@ -211,7 +212,7 @@ function PartnerTable() {
             Partner Users Table
           </MDTypography>
           {currentUser?.role === 'ADMIN' && (
-            <MDButton variant="gradient" color="info" onClick={() => setIsAddPartnerModalOpen(true)}>
+            <MDButton variant="gradient" color="warning" onClick={() => setIsAddPartnerModalOpen(true)}>
               Add Partner
             </MDButton>
           )}
