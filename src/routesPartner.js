@@ -146,7 +146,7 @@ const routesPartner = [
   //   component: <Profile />,
   // },
   {
-    type: 'collapse',
+    type: 'divider',
     name: 'Sign Out',
     key: 'sign-in',
     icon: <Icon fontSize="small">login</Icon>,
