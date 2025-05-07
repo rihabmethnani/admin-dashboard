@@ -47,6 +47,7 @@ import DriverTable from 'layouts/user/DriverTable';
 import OrderTable from 'layouts/order/OrderTable';
 import CourseTable from 'layouts/user/CourseTabel';
 import AssistantAdminTable from 'layouts/user/AssistantAdminTable';
+import IncidentTable from 'layouts/order/incidentTable';
   // const {currentUser,setCurentUser}=useAuth()
   // console.log("Curraaaaaent User:", currentUser);
 const routesAdmin = [
@@ -99,6 +100,14 @@ const routesAdmin = [
     icon: <Icon fontSize="small">receipt_long</Icon>,
     route: '/Course',
     component: <CourseTable/>,
+  },
+  {
+    type: 'collapse',
+    name: 'Incident',
+    key: 'tables',
+    icon: <Icon fontSize="small">warning</Icon>,
+    route: '/Incident',
+    component: <IncidentTable/>,
   },
   // {
   //   type: 'collapse',

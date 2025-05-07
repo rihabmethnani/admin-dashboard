@@ -54,6 +54,7 @@ import AdminTable from 'layouts/user/AdminTable';
 import OrderTable from 'layouts/order/OrderTable';
 import { useAuth } from 'context/AuthContext';
 import CourseTable from 'layouts/user/CourseTabel';
+import IncidentTable from 'layouts/order/incidentTable';
   // const {currentUser,setCurentUser}=useAuth()
   // console.log("Curraaaaaent User:", currentUser);
 const routesAssistantAdmin = [
@@ -114,6 +115,15 @@ const routesAssistantAdmin = [
     route: '/Course',
     component: <CourseTable/>,
   },
+
+   {
+      type: 'collapse',
+      name: 'Incident',
+      key: 'tables',
+      icon: <Icon fontSize="small">warning</Icon>,
+      route: '/Incident',
+      component: <IncidentTable/>,
+    },
   // {
   //   type: 'collapse',
   //   name: 'Billing',

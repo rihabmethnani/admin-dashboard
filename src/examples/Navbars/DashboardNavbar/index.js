@@ -160,7 +160,7 @@ function DashboardNavbar({ absolute, light, isMini }) {
           sx={(theme) => navbarRow(theme, { isMini })}
         >
           <Breadcrumbs
-            icon="home"
+            // icon="home"
             title={route[route.length - 1]}
             route={route}
             light={light}

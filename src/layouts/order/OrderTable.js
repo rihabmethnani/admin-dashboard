@@ -23,47 +23,65 @@ import MDTypography from "components/MDTypography"
 import MDButton from "components/MDButton"
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout"
 import DashboardNavbar from "examples/Navbars/DashboardNavbar"
-import Footer from "examples/Footer"
 import DataTable from "examples/Tables/DataTable"
 import EditIcon from "@mui/icons-material/Edit"
 import { clientMicroservice1 } from "apolloClients/microservice1"
 import { clientMicroservice2 } from "apolloClients/microservice2"
-import {
-  GET_ORDERS,
-  ASSIGN_ORDERS_TO_DRIVER,
-  GET_ORDER_HISTORY,
-  GET_USERS_BY_ROLE,
-  UPDATE_ORDER_STATUS,
-} from "graphql/queries/orderQueries"
+import { GET_ORDERS, GET_ORDER_HISTORY, GET_USERS_BY_ROLE, UPDATE_ORDER_STATUS } from "graphql/queries/orderQueries"
 import IconButton from "@mui/material/IconButton"
 import DeleteIcon from "@mui/icons-material/Delete"
 import { useSnackbar } from "notistack"
 import OrderHistoryModal from "./OrderHistoryModal"
 import EditStatusModal from "./EditStatusModal"
 import { useAuth } from "context/AuthContext"
+import ErrorIcon from "@mui/icons-material/Error"
+import LocationOnIcon from "@mui/icons-material/LocationOn"
 const ORDER_STATUSES = [
-  "EN_ATTENTE",
-  "ENTRE_CENTRAL",
-  "ASSIGNE",
-  "EN_COURS_LIVRAISON",
-  "LIVRE",
-  "ECHEC_LIVRAISON",
-  "RETOURNE",
-  "ANNULE",
-  "EN_ATTENTE_RESOLUTION",
-  "RELANCE",
-  "RETARDE",
-  "PARTIELLEMENT_LIVRE",
-  "EN_ENTREPOT",
-  "EN_ATTENTE_CONFIRMATION",
+  "PENDING",
+  "IN_CENTRAL_WAREHOUSE",
+  "ASSIGNED",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "DELIVERY_FAILED",
+  "RETURNED",
+  "CANCELED",
+  "PENDING_RESOLUTION",
+  "FOLLOW_UP",
+  "DELAYED",
+  "PARTIALLY_DELIVERED",
+  "IN_WAREHOUSE",
+  "AWAITING_CONFIRMATION",
   "VERIFICATION",
-]
+];
+
 
 const GET_USER_BY_ID = gql`
   query GetUserById($id: String!) {
     getUserById(id: $id) {
       _id
       name
+    }
+  }
+`
+
+const GET_CLIENT_BY_ID = gql`
+  query GetClientById($id: String!) {
+    getClientById(id: $id) {
+      _id
+      name
+      address
+      phone
+    }
+  }
+`
+
+const ASSIGN_ORDERS_TO_DRIVER = gql`
+  mutation AssignOrdersToDriver($orderIds: [String!]!, $driverId: String!) {
+    assignOrdersToDriver(orderIds: $orderIds, driverId: $driverId) {
+      _id
+      status
+      driverId
+      createdAt
     }
   }
 `
@@ -78,13 +96,87 @@ function OrderTable() {
     client: clientMicroservice1,
     variables: { role: "DRIVER" },
   })
-const {currentUser}=useAuth()
-  const [assignOrdersToDriver] = useMutation(ASSIGN_ORDERS_TO_DRIVER, { client: clientMicroservice2 })
-  const [updateOrderStatus] = useMutation(UPDATE_ORDER_STATUS, { client: clientMicroservice2 })
+  const { currentUser } = useAuth()
+  const { enqueueSnackbar } = useSnackbar()
+
+  // State variables
   const [history, setHistory] = useState([])
   const [usersCache, setUsersCache] = useState({})
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const [isStatusUpdateLoading, setIsStatusUpdateLoading] = useState(false)
+  const [isBulkAssignLoading, setIsBulkAssignLoading] = useState(false)
+  const [orders, setOrders] = useState([])
+  const [availableDrivers, setAvailableDrivers] = useState([])
+  const [selectedOrders, setSelectedOrders] = useState([])
+  const [selectedDriverId, setSelectedDriverId] = useState("")
+  const [partners, setPartners] = useState({})
+  const [drivers, setDrivers] = useState({})
+  const [clients, setClients] = useState({}) // Store client data
+  const [anchorEl, setAnchorEl] = useState(null)
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false)
+  const [isEditStatusModalOpen, setIsEditStatusModalOpen] = useState(false)
+
+  // Error popup states
+  const [errorPopupOpen, setErrorPopupOpen] = useState(false)
+  const [errorPopupMessage, setErrorPopupMessage] = useState("")
+  const [errorPopupTitle, setErrorPopupTitle] = useState("Error")
+
+  // Function to handle assignment errors based on the error message
+  const handleAssignmentError = (error) => {
+    console.error("Assignment error:", error)
+
+    // Extract the error message
+    const errorMsg = error.message || ""
+    let popupTitle = "Assignment Error"
+    let popupMessage = ""
+
+    // Check for specific error conditions based on the backend function
+    if (errorMsg.includes("Only ADMIN or AdminAssistant")) {
+      popupTitle = "Permission Denied"
+      popupMessage = "Only administrators can assign orders to drivers."
+    } else if (errorMsg.includes("User not found")) {
+      popupTitle = "Authentication Error"
+      popupMessage = "User authentication error: Please log in again."
+    } else if (errorMsg.includes("déjà assignés à ce livreur aujourd'hui")) {
+      // Extract the order IDs if available
+      const orderIdsMatch = errorMsg.match(/: (.*?)$/)
+      const orderIdsStr = orderIdsMatch ? orderIdsMatch[1] : ""
+
+      popupTitle = "Orders Already Assigned"
+      popupMessage = `These orders are already assigned to this driver today${orderIdsStr ? ": " + orderIdsStr : ""}.`
+    } else if (errorMsg.includes("Driver already has")) {
+      // Extract the counts if available
+      const existingMatch = errorMsg.match(/has (\d+) orders/)
+      const remainingMatch = errorMsg.match(/up to (\d+) more/)
+
+      const existingCount = existingMatch ? existingMatch[1] : "multiple"
+      const remainingCount = remainingMatch ? remainingMatch[1] : "few"
+
+      popupTitle = "Driver Capacity Limit"
+      popupMessage = `Driver already has ${existingCount} orders assigned today. You can only assign up to ${remainingCount} more orders.`
+    } else if (errorMsg.includes("One or more orders not found")) {
+      popupTitle = "Orders Not Found"
+      popupMessage = "One or more selected orders no longer exist in the system."
+    } else {
+      // Default error message for any other errors
+      popupTitle = "Assignment Failed"
+      popupMessage = "Failed to assign orders to driver. Please try again later."
+    }
+
+    // Set the error popup content and show it
+    setErrorPopupTitle(popupTitle)
+    setErrorPopupMessage(popupMessage)
+    setErrorPopupOpen(true)
+  }
+
+  // Mutations
+  const [assignOrdersToDriver] = useMutation(ASSIGN_ORDERS_TO_DRIVER, {
+    client: clientMicroservice2,
+    onError: handleAssignmentError,
+  })
+
+  const [updateOrderStatus] = useMutation(UPDATE_ORDER_STATUS, { client: clientMicroservice2 })
 
   const { data: adminsData } = useQuery(GET_USERS_BY_ROLE, {
     client: clientMicroservice1,
@@ -95,17 +187,6 @@ const {currentUser}=useAuth()
     client: clientMicroservice1,
     variables: { role: "ASSISTANT_ADMIN" },
   })
-  const [orders, setOrders] = useState([])
-  const [availableDrivers, setAvailableDrivers] = useState([])
-  const [selectedOrders, setSelectedOrders] = useState([])
-  const [selectedDriverId, setSelectedDriverId] = useState("")
-  const [partners, setPartners] = useState({})
-  const [drivers, setDrivers] = useState({})
-  const [anchorEl, setAnchorEl] = useState(null)
-  const [selectedOrder, setSelectedOrder] = useState(null)
-  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false)
-  const [isEditStatusModalOpen, setIsEditStatusModalOpen] = useState(false)
-  const { enqueueSnackbar } = useSnackbar()
 
   useEffect(() => {
     if (driversData?.getUsersByRole) {
@@ -149,14 +230,38 @@ const {currentUser}=useAuth()
     }
   }
 
+  const fetchClientData = async (clientId) => {
+    if (!clientId || clients[clientId]) return clients[clientId]?.address || "N/A"
+
+    try {
+      const { data: clientData } = await clientMicroservice2.query({
+        query: GET_CLIENT_BY_ID,
+        variables: { id: clientId },
+      })
+
+      if (clientData?.getClientById) {
+        setClients((prev) => ({
+          ...prev,
+          [clientId]: clientData.getClientById,
+        }))
+        return clientData.getClientById.address || "N/A"
+      }
+      return "N/A"
+    } catch (err) {
+      console.error("Error fetching client:", err.message)
+      return "N/A"
+    }
+  }
+
   useEffect(() => {
     if (ordersData?.orders) {
       const fetchUsers = async () => {
-        // First fetch all partner and driver names
+        // First fetch all partner, driver, and client data
         const ordersWithUsers = await Promise.all(
           ordersData.orders.map(async (order) => {
             let partnerName = "N/A"
             let driverName = "N/A"
+            let clientAddress = "N/A"
 
             if (order.partnerId) {
               try {
@@ -184,15 +289,31 @@ const {currentUser}=useAuth()
               }
             }
 
+            if (order.clientId) {
+              try {
+                const { data: clientData } = await clientMicroservice2.query({
+                  query: GET_CLIENT_BY_ID,
+                  variables: { id: order.clientId },
+                })
+                if (clientData?.getClientById) {
+                  clientAddress = clientData.getClientById.address || "N/A"
+                  setClients((prev) => ({ ...prev, [order.clientId]: clientData.getClientById }))
+                }
+              } catch (err) {
+                console.error("Error fetching client:", err.message)
+              }
+            }
+
             return {
               ...order,
               partnerName,
               driverName,
+              clientAddress,
             }
           }),
         )
 
-        // Then set the orders with the fetched names
+        // Then set the orders with the fetched names and addresses
         setOrders(
           ordersWithUsers.map((order, index) => ({
             _id: order._id,
@@ -200,6 +321,7 @@ const {currentUser}=useAuth()
             status: order.status,
             partner: order.partnerName,
             driver: order.driverName,
+            clientAddress: order.clientAddress,
             action: (
               <MDBox display="flex" alignItems="center">
                 <EditIcon color="info" style={{ cursor: "pointer" }} onClick={(e) => handleOpenMenu(e, order)} />
@@ -233,7 +355,7 @@ const {currentUser}=useAuth()
 
   const handleEditStatus = async (newStatus) => {
     if (!selectedOrder || !newStatus) {
-      enqueueSnackbar("Données manquantes", { variant: "error" })
+      enqueueSnackbar("Missing data", { variant: "error" })
       return
     }
 
@@ -247,7 +369,7 @@ const {currentUser}=useAuth()
         },
       })
 
-      enqueueSnackbar(`Statut mis à jour: ${data.updateOrderStatus.status}`, {
+      enqueueSnackbar(`Status updated: ${data.updateOrderStatus.status}`, {
         variant: "success",
       })
 
@@ -258,31 +380,56 @@ const {currentUser}=useAuth()
       setIsEditStatusModalOpen(false)
       setSelectedOrder(null)
     } catch (error) {
-      console.error("Erreur de mise à jour:", error)
-      enqueueSnackbar(`Échec: ${error.message}`, { variant: "error" })
+      console.error("Update error:", error)
+      enqueueSnackbar(`Failed: ${error.message}`, { variant: "error" })
     } finally {
       setIsStatusUpdateLoading(false)
     }
   }
 
   const handleBulkAssign = async () => {
+    if (!selectedDriverId) {
+      enqueueSnackbar("Please select a driver", { variant: "error" })
+      return
+    }
+
+    if (selectedOrders.length === 0) {
+      enqueueSnackbar("Please select at least one order", { variant: "error" })
+      return
+    }
+
+    setIsBulkAssignLoading(true)
+
     try {
-      await assignOrdersToDriver({
-        variables: { orderIds: selectedOrders, driverId: selectedDriverId },
+      // Show a notification that we're attempting to assign orders
+      enqueueSnackbar("Assigning orders...", { variant: "info" })
+
+      const { data } = await assignOrdersToDriver({
+        variables: {
+          orderIds: selectedOrders,
+          driverId: selectedDriverId,
+        },
       })
+
       await refetchOrders()
       setIsBulkAssignModalOpen(false)
       setSelectedOrders([])
-      alert("Orders assigned successfully!")
+      enqueueSnackbar(`${selectedOrders.length} orders assigned successfully!`, {
+        variant: "success",
+        autoHideDuration: 5000,
+        anchorOrigin: { vertical: "top", horizontal: "center" },
+      })
     } catch (error) {
-      console.error("Error assigning orders:", error)
-      alert("Failed to assign orders.")
+      // Error will be handled by the onError callback in the mutation
+      console.error("Error in try/catch:", error)
+    } finally {
+      setIsBulkAssignLoading(false)
     }
   }
 
   const openBulkAssignModal = () => {
     if (!selectedOrders.length) {
-      alert("Select at least one order.")
+      enqueueSnackbar("Select at least one order", { variant: "warning" })
       return
     }
     setIsBulkAssignModalOpen(true)
@@ -292,7 +439,7 @@ const {currentUser}=useAuth()
   const openHistoryModal = async (order) => {
     try {
       if (!order || !order._id) {
-        enqueueSnackbar("Données de commande invalides", { variant: "error" })
+        enqueueSnackbar("Invalid order data", { variant: "error" })
         return
       }
 
@@ -311,8 +458,8 @@ const {currentUser}=useAuth()
       setSelectedOrder(order)
       setIsHistoryModalOpen(true)
     } catch (error) {
-      console.error("Erreur lors du chargement de l'historique:", error)
-      enqueueSnackbar(`Échec du chargement de l'historique: ${error.message}`, {
+      console.error("Error loading history:", error)
+      enqueueSnackbar(`Failed to load history: ${error.message}`, {
         variant: "error",
       })
     }
@@ -323,22 +470,23 @@ const {currentUser}=useAuth()
   }
 
   const statusColors = {
-    EN_ATTENTE: "warning",
-    ENTRE_CENTRAL: "info",
-    ASSIGNE: "success",
-    EN_COURS_LIVRAISON: "primary",
-    LIVRE: "success",
-    ECHEC_LIVRAISON: "error",
-    RETOURNE: "error",
-    ANNULE: "error",
-    EN_ATTENTE_RESOLUTION: "warning",
-    RELANCE: "info",
-    RETARDE: "warning",
-    PARTIELLEMENT_LIVRE: "success",
-    EN_ENTREPOT: "secondary",
-    EN_ATTENTE_CONFIRMATION: "warning",
+    PENDING: "warning",
+    IN_CENTRAL_WAREHOUSE: "info",
+    ASSIGNED: "success",
+    OUT_FOR_DELIVERY: "primary",
+    DELIVERED: "success",
+    DELIVERY_FAILED: "error",
+    RETURNED: "error",
+    CANCELED: "error",
+    PENDING_RESOLUTION: "warning",
+    FOLLOW_UP: "info",
+    DELAYED: "warning",
+    PARTIALLY_DELIVERED: "success",
+    IN_WAREHOUSE: "secondary",
+    AWAITING_CONFIRMATION: "warning",
     VERIFICATION: "info",
-  }
+  };
+  
 
   const columns = [
     {
@@ -362,6 +510,19 @@ const {currentUser}=useAuth()
     },
     { Header: "Partner", accessor: "partner", align: "center" },
     { Header: "Driver", accessor: "driver", align: "center" },
+    {
+      Header: "Client Address",
+      accessor: "clientAddress",
+      Cell: ({ value }) => (
+        <MDBox display="flex" alignItems="center">
+          <LocationOnIcon fontSize="small" color="info" sx={{ mr: 0.5 }} />
+          <MDTypography variant="caption" fontWeight="medium">
+            {value}
+          </MDTypography>
+        </MDBox>
+      ),
+      align: "left",
+    },
     { Header: "Action", accessor: "action", align: "center" },
     {
       Header: "History",
@@ -378,17 +539,16 @@ const {currentUser}=useAuth()
           <Grid item xs={12}>
             <Card>
               <MDBox p={2} display="flex" justifyContent="flex-end">
-                {(currentUser?.role==="ADMIN" || currentUser?.role=== "ADMIN_ASSISTANT") && 
-                <MDButton
-                  variant="gradient"
-                  color="warning"
-                  onClick={openBulkAssignModal}
-                  disabled={!selectedOrders.length}
-                >
-                  Assign Selected Orders
-                </MDButton>
-
-                }
+                {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
+                  <MDButton
+                    variant="gradient"
+                    color="warning"
+                    onClick={openBulkAssignModal}
+                    disabled={!selectedOrders.length}
+                  >
+                    Assign Selected Orders
+                  </MDButton>
+                )}
               </MDBox>
               <MDBox pt={3}>
                 <DataTable
@@ -403,7 +563,6 @@ const {currentUser}=useAuth()
           </Grid>
         </Grid>
       </MDBox>
-      {/* <Footer /> */}
 
       {/* Bulk Assign Modal */}
       <Dialog open={isBulkAssignModalOpen} onClose={() => setIsBulkAssignModalOpen(false)}>
@@ -428,8 +587,24 @@ const {currentUser}=useAuth()
           <MDButton onClick={() => setIsBulkAssignModalOpen(false)} color="secondary">
             Cancel
           </MDButton>
-          <MDButton onClick={handleBulkAssign} color="info">
-            Assign
+          <MDButton onClick={handleBulkAssign} color="info" disabled={isBulkAssignLoading}>
+            {isBulkAssignLoading ? "Assigning..." : "Assign"}
+          </MDButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Error Popup Dialog */}
+      <Dialog open={errorPopupOpen} onClose={() => setErrorPopupOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <ErrorIcon color="error" />
+          {errorPopupTitle}
+        </DialogTitle>
+        <DialogContent>
+          <MDTypography variant="body1">{errorPopupMessage}</MDTypography>
+        </DialogContent>
+        <DialogActions>
+          <MDButton onClick={() => setErrorPopupOpen(false)} color="primary">
+            OK
           </MDButton>
         </DialogActions>
       </Dialog>

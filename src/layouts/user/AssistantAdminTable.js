@@ -10,7 +10,20 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout"
 import DashboardNavbar from "examples/Navbars/DashboardNavbar"
 import DataTable from "examples/Tables/DataTable"
 import Author from "./Author"
-import { Dialog, DialogTitle, DialogContent, TextField, DialogActions } from "@mui/material"
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
+  FormHelperText,
+  Divider,
+  InputAdornment,
+  IconButton,
+  Avatar,
+  Box,
+  Chip,
+} from "@mui/material"
 import MDButton from "components/MDButton"
 import PropTypes from "prop-types"
 import EditIcon from "@mui/icons-material/Edit"
@@ -18,8 +31,17 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import { useMaterialUIController } from "context"
 import { clientMicroservice1 } from "apolloClients/microservice1"
 import { useAuth } from "context/AuthContext"
+import PhoneIcon from "@mui/icons-material/Phone"
+import EmailIcon from "@mui/icons-material/Email"
+import HomeIcon from "@mui/icons-material/Home"
+import WorkIcon from "@mui/icons-material/Work"
+import PersonIcon from "@mui/icons-material/Person"
+import LockIcon from "@mui/icons-material/Lock"
+import VisibilityIcon from "@mui/icons-material/Visibility"
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff"
+import ImageIcon from "@mui/icons-material/Image"
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline"
 
-// GraphQL Query to get assistant admins
 const GET_ADMIN_ASSISTANTS = gql`
   query GetAssistantAdmins {
     getUsersByRole(role: "ADMIN_ASSISTANT") {
@@ -29,11 +51,11 @@ const GET_ADMIN_ASSISTANTS = gql`
       phone
       address
       image
+      zoneResponsabilite
     }
   }
 `
 
-// Mutation to update an assistant admin
 const UPDATE_ADMIN_ASSISTANT = gql`
   mutation UpdateAssistantAdminProfile($updateUserDto: UpdateUserDto!, $assistantAdminId: String) {
     updateAssistantAdminProfile(updateUserDto: $updateUserDto, assistantAdminId: $assistantAdminId) {
@@ -41,6 +63,7 @@ const UPDATE_ADMIN_ASSISTANT = gql`
       email
       phone
       role
+      zoneResponsabilite
       createdAt
       updatedAt
     }
@@ -56,7 +79,6 @@ const SOFT_REMOVE_USER = gql`
   }
 `
 
-// Mutation to create a new assistant admin
 const CREATE_ADMIN_ASSISTANT = gql`
   mutation CreateAdminAssistant($createUserDto: CreateUserDto!) {
     createAdminAssistant(createUserDto: $createUserDto) {
@@ -64,9 +86,29 @@ const CREATE_ADMIN_ASSISTANT = gql`
       name
       email
       role
+      zoneResponsabilite
     }
   }
 `
+
+// Form validation functions
+const validatePhone = (phone) => {
+  // Allow empty phone or phone with only digits
+  return !phone || /^\d+$/.test(phone) ? "" : "Phone must contain only numbers"
+}
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email) ? "" : "Please enter a valid email address"
+}
+
+const validateRequired = (value, fieldName) => {
+  return value ? "" : `${fieldName} is required`
+}
+
+const validatePasswordMatch = (password, confirmPassword) => {
+  return password === confirmPassword ? "" : "Passwords do not match"
+}
 
 function AssistantAdminTable() {
   const { loading, error, data, refetch } = useQuery(GET_ADMIN_ASSISTANTS, {
@@ -96,6 +138,7 @@ function AssistantAdminTable() {
           author: <Author image={admin.image || null} name={admin.name} email={admin.email} />,
           phone: admin.phone || "N/A",
           address: admin.address || "N/A",
+         
           action: (
             <MDBox display="flex" gap={1}>
               <EditModal assistantAdmin={admin} onSave={handleEdit}>
@@ -103,6 +146,7 @@ function AssistantAdminTable() {
               </EditModal>
               <DeleteIcon
                 color="error"
+                fontSize="small"
                 style={{ cursor: "pointer" }}
                 onClick={(e) => {
                   e.preventDefault()
@@ -111,6 +155,7 @@ function AssistantAdminTable() {
               />
             </MDBox>
           ),
+          _id: admin._id, // Store the original ID for reference
         })),
       )
     }
@@ -157,6 +202,7 @@ function AssistantAdminTable() {
             phone: updatedData.phone || null,
             address: updatedData.address || null,
             image: updatedData.image || null,
+            zoneResponsabilite: updatedData.zoneResponsabilite || null, // Added responsibility zone
           },
         },
       })
@@ -170,12 +216,33 @@ function AssistantAdminTable() {
     }
   }
 
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error.message}</p>
+  if (loading)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" height="70vh">
+          <MDTypography variant="h5" color="text">
+            Loading assistant admins...
+          </MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
+
+  if (error)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" height="70vh">
+          <MDTypography variant="h5" color="error">
+            Error: {error.message}
+          </MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
 
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Author", accessor: "author", width: "45%", align: "left" },
+    { Header: "Author", accessor: "author", width: "30%", align: "left" },
     { Header: "Phone", accessor: "phone", align: "center" },
     { Header: "Address", accessor: "address", align: "left" },
     { Header: "Action", accessor: "action", align: "center" },
@@ -183,7 +250,7 @@ function AssistantAdminTable() {
 
   const unpermissionColumns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Author", accessor: "author", width: "45%", align: "left" },
+    { Header: "Author", accessor: "author", width: "30%", align: "left" },
     { Header: "Phone", accessor: "phone", align: "center" },
     { Header: "Address", accessor: "address", align: "left" },
   ]
@@ -195,12 +262,18 @@ function AssistantAdminTable() {
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
         <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <MDTypography variant="h6" fontWeight="medium">
-            Assistant Admins Table
-          </MDTypography>
+          <MDBox>
+            
+          
+          </MDBox>
 
-          { (currentUser?.role==="ADMIN" && "ADMIN_ASSISTANT") && (
-            <MDButton variant="gradient" color="warning" onClick={() => setIsAddModalOpen(true)}>
+          {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
+            <MDButton
+              variant="gradient"
+              color="warning"
+              onClick={() => setIsAddModalOpen(true)}
+              startIcon={<AddCircleOutlineIcon />}
+            >
               Add Assistant Admin
             </MDButton>
           )}
@@ -208,7 +281,7 @@ function AssistantAdminTable() {
 
         <Grid container spacing={6}>
           <Grid item xs={12}>
-            <Card>
+            <Card sx={{ boxShadow: "0 4px 20px 0 rgba(0,0,0,0.1)" }}>
               <MDBox pt={3}>
                 <DataTable
                   table={{
@@ -216,8 +289,8 @@ function AssistantAdminTable() {
                     rows: filteredAssistantAdmins,
                   }}
                   isSorted={false}
-                  entriesPerPage={false}
-                  showTotalEntries={false}
+                  entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
+                  showTotalEntries={true}
                   noEndBorder
                 />
               </MDBox>
@@ -259,7 +332,7 @@ function AssistantAdminTable() {
   )
 }
 
-// Edit Modal
+// Edit Modal with validation
 function EditModal({ assistantAdmin, onSave, children }) {
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -271,13 +344,45 @@ function EditModal({ assistantAdmin, onSave, children }) {
     image: assistantAdmin.image || "",
   })
 
+  // Form validation errors
+  const [errors, setErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  })
+
+  const validateForm = () => {
+    const newErrors = {
+      name: validateRequired(formData.name, "Name"),
+      email: validateEmail(formData.email),
+      phone: validatePhone(formData.phone),
+    }
+
+    setErrors(newErrors)
+
+    // Return true if no errors (all error messages are empty strings)
+    return !Object.values(newErrors).some((error) => error !== "")
+  }
+
   const handleSave = () => {
     if (!formData._id) {
       alert("Assistant admin ID is missing. Cannot update.")
       return
     }
-    onSave(formData)
-    setOpen(false)
+
+    if (validateForm()) {
+      onSave(formData)
+      setOpen(false)
+    }
+  }
+
+  const handleChange = (field, value) => {
+    setFormData({ ...formData, [field]: value })
+
+    // Clear error when user types
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: "" })
+    }
   }
 
   return (
@@ -286,48 +391,119 @@ function EditModal({ assistantAdmin, onSave, children }) {
         {children}
       </span>
 
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>Edit Assistant Admin</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "10px",
+            boxShadow: "0 8px 16px 0 rgba(0,0,0,0.2)",
+          },
+        }}
+      >
+        <DialogTitle sx={{ bgcolor: "white", color: "white", display: "flex", alignItems: "center" }}>
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit Assistant Admin
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Box display="flex" justifyContent="center" mb={3}>
+            {/* <Avatar
+              src={formData.image}
+              alt={formData.name}
+              sx={{ width: 80, height: 80, border: "3px solid #1A73E8" }}
+            >
+              {formData.name?.charAt(0) || "A"}
+            </Avatar> */}
+          </Box>
+
           <TextField
             label="Name"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e) => handleChange("name", e.target.value)}
             fullWidth
             margin="normal"
+            error={!!errors.name}
+            helperText={errors.name}
+            required
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonIcon color="warning" />
+                </InputAdornment>
+              ),
+            }}
           />
           <TextField
             label="Email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) => handleChange("email", e.target.value)}
             fullWidth
             margin="normal"
+            error={!!errors.email}
+            helperText={errors.email}
+            required
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <EmailIcon color="warning" />
+                </InputAdornment>
+              ),
+            }}
           />
           <TextField
             label="Phone"
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            onChange={(e) => handleChange("phone", e.target.value)}
             fullWidth
             margin="normal"
+            error={!!errors.phone}
+            helperText={errors.phone}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PhoneIcon color="warning" />
+                </InputAdornment>
+              ),
+            }}
           />
           <TextField
             label="Address"
             value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            onChange={(e) => handleChange("address", e.target.value)}
             fullWidth
             margin="normal"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <HomeIcon color="warning" />
+                </InputAdornment>
+              ),
+            }}
           />
-          <TextField
+        
+          {/* <TextField
             label="Image URL"
             value={formData.image}
-            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+            onChange={(e) => handleChange("image", e.target.value)}
             fullWidth
             margin="normal"
-          />
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <ImageIcon color="warning" />
+                </InputAdornment>
+              ),
+            }}
+          /> */}
         </DialogContent>
-        <DialogActions>
-          <MDButton onClick={() => setOpen(false)}>Cancel</MDButton>
-          <MDButton onClick={handleSave}>Save</MDButton>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <MDButton onClick={() => setOpen(false)} color="warning" variant="outlined">
+            Cancel
+          </MDButton>
+          <MDButton onClick={handleSave} color="warning" variant="gradient">
+            Save Changes
+          </MDButton>
         </DialogActions>
       </Dialog>
     </>
@@ -347,7 +523,7 @@ EditModal.propTypes = {
   children: PropTypes.node,
 }
 
-// Modal for adding an assistant admin
+// Modal for adding an assistant admin with validation
 function AddAssistantAdminModal({ open, onClose, onCreate }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -355,69 +531,247 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
     phone: "",
     address: "",
     password: "",
+    confirmPassword: "", // Added confirm password field
   })
 
-  const handleSave = () => {
-    if (!formData.name || !formData.email || !formData.password) {
-      alert("Please fill in all required fields.")
-      return
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // Form validation errors
+  const [errors, setErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "", // Added error for confirm password
+  })
+
+  const validateForm = () => {
+    const newErrors = {
+      name: validateRequired(formData.name, "Name"),
+      email: validateEmail(formData.email),
+      phone: validatePhone(formData.phone),
+      password: validateRequired(formData.password, "Password"),
+      confirmPassword: validatePasswordMatch(formData.password, formData.confirmPassword),
     }
-    onCreate(formData)
-    onClose()
-    // Reset form data
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      password: "",
-    })
+
+    setErrors(newErrors)
+
+    // Return true if no errors (all error messages are empty strings)
+    return !Object.values(newErrors).some((error) => error !== "")
+  }
+
+  const handleChange = (field, value) => {
+    setFormData({ ...formData, [field]: value })
+
+    // Clear error when user types
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: "" })
+    }
+
+    // Special handling for password and confirmPassword to validate match
+    if (field === "password" || field === "confirmPassword") {
+      if (field === "password" && formData.confirmPassword) {
+        // If changing password and confirmPassword exists, check if they still match
+        setErrors({
+          ...errors,
+          confirmPassword: validatePasswordMatch(value, formData.confirmPassword),
+        })
+      } else if (field === "confirmPassword") {
+        // If changing confirmPassword, check if it matches password
+        setErrors({
+          ...errors,
+          confirmPassword: validatePasswordMatch(formData.password, value),
+        })
+      }
+    }
+  }
+
+  const handleSave = () => {
+    if (validateForm()) {
+      onCreate(formData)
+      // Reset form data
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        password: "",
+        confirmPassword: "",
+      })
+      setErrors({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+      })
+    }
   }
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Add New Assistant Admin</DialogTitle>
-      <DialogContent>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: "10px",
+          boxShadow: "0 8px 16px 0 rgba(0,0,0,0.2)",
+        },
+      }}
+    >
+      <DialogTitle sx={{ bgcolor: "white", color: "white", display: "flex", alignItems: "center" }}>
+        <AddCircleOutlineIcon sx={{ mr: 1 }} /> Add New Assistant Admin
+      </DialogTitle>
+      <DialogContent sx={{ pt: 3 }}>
+        <MDBox mb={2}>
+          <MDTypography variant="body2" color="text">
+            Create a new assistant admin account. All fields marked with * are required.
+          </MDTypography>
+        </MDBox>
+
+        <Divider sx={{ mb: 3 }} />
+
+        <MDTypography variant="subtitle2" fontWeight="medium" color="warning" mb={2}>
+        Personal Information
+                </MDTypography>
+
         <TextField
           label="Name"
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => handleChange("name", e.target.value)}
           fullWidth
           margin="normal"
+          error={!!errors.name}
+          helperText={errors.name}
+          required
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <PersonIcon color="warning" />
+              </InputAdornment>
+            ),
+          }}
         />
         <TextField
           label="Email"
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={(e) => handleChange("email", e.target.value)}
           fullWidth
           margin="normal"
+          error={!!errors.email}
+          helperText={errors.email}
+          required
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <EmailIcon color="warning" />
+              </InputAdornment>
+            ),
+          }}
         />
         <TextField
           label="Phone"
           value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          onChange={(e) => handleChange("phone", e.target.value)}
           fullWidth
           margin="normal"
+          error={!!errors.phone}
+          helperText={errors.phone}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <PhoneIcon color="warning" />
+              </InputAdornment>
+            ),
+          }}
         />
         <TextField
           label="Address"
           value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          onChange={(e) => handleChange("address", e.target.value)}
           fullWidth
           margin="normal"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <HomeIcon color="warning" />
+              </InputAdornment>
+            ),
+          }}
         />
+      
+
+        <Divider sx={{ my: 3 }} />
+
+        <MDTypography variant="subtitle2" fontWeight="medium" color="warning" mb={2}>
+          Account Security
+        </MDTypography>
+
         <TextField
           label="Password"
-          type="password"
+          type={showPassword ? "text" : "password"}
           value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          onChange={(e) => handleChange("password", e.target.value)}
           fullWidth
           margin="normal"
+          error={!!errors.password}
+          helperText={errors.password}
+          required
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockIcon color="warning" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                  {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
         />
+        <TextField
+          label="Confirm Password"
+          type={showConfirmPassword ? "text" : "password"}
+          value={formData.confirmPassword}
+          onChange={(e) => handleChange("confirmPassword", e.target.value)}
+          fullWidth
+          margin="normal"
+          error={!!errors.confirmPassword}
+          helperText={errors.confirmPassword}
+          required
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockIcon color="warning" />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
+                  {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+        <FormHelperText sx={{ mt: 2 }}>
+          Fields marked with * are required. Phone numbers must contain only digits.
+        </FormHelperText>
       </DialogContent>
-      <DialogActions>
-        <MDButton onClick={onClose}>Cancel</MDButton>
-        <MDButton onClick={handleSave}>Save</MDButton>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <MDButton onClick={onClose} color="warning" variant="outlined">
+          Cancel
+        </MDButton>
+        <MDButton onClick={handleSave} color="warning" variant="gradient">
+          Create Account
+        </MDButton>
       </DialogActions>
     </Dialog>
   )

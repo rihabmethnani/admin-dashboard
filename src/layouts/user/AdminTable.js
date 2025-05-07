@@ -10,7 +10,17 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout"
 import DashboardNavbar from "examples/Navbars/DashboardNavbar"
 import DataTable from "examples/Tables/DataTable"
 import Author from "./Author"
-import { Dialog, DialogTitle, DialogContent, TextField, DialogActions } from "@mui/material"
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+} from "@mui/material"
 import MDButton from "components/MDButton"
 import PropTypes from "prop-types"
 import EditIcon from "@mui/icons-material/Edit"
@@ -18,6 +28,35 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import { useMaterialUIController } from "context" // Importez le contexte
 import { clientMicroservice1 } from "apolloClients/microservice1"
 import FileUploadField from "components/fileuploader"
+import LocationOnIcon from "@mui/icons-material/LocationOn"
+
+// Tunisian Regions Enum
+const TunisianRegion = {
+  ARIANA: "Ariana",
+  BEJA: "Béja",
+  BEN_AROUS: "Ben Arous",
+  BIZERTE: "Bizerte",
+  GABES: "Gabès",
+  GAFSA: "Gafsa",
+  JENDOUBA: "Jendouba",
+  KAIROUAN: "Kairouan",
+  KASSERINE: "Kasserine",
+  KEBILI: "Kébili",
+  KEF: "Le Kef",
+  MAHDIA: "Mahdia",
+  MANOUBA: "La Manouba",
+  MEDENINE: "Médenine",
+  MONASTIR: "Monastir",
+  NABEUL: "Nabeul",
+  SFAX: "Sfax",
+  SIDI_BOUZID: "Sidi Bouzid",
+  SILIANA: "Siliana",
+  SOUSSE: "Sousse",
+  TATAOUINE: "Tataouine",
+  TOZEUR: "Tozeur",
+  TUNIS: "Tunis",
+  ZAGHOUAN: "Zaghouan",
+}
 
 // GraphQL Query pour récupérer les administrateurs
 const GET_ADMINS = gql`
@@ -29,6 +68,7 @@ const GET_ADMINS = gql`
       phone
       address
       image
+      zoneResponsabilite
     }
   }
 `
@@ -43,6 +83,7 @@ const UPDATE_USER = gql`
       phone
       address
       image
+      zoneResponsabilite
     }
   }
 `
@@ -69,6 +110,7 @@ const CREATE_ADMIN = gql`
       phone
       address
       role
+      zoneResponsabilite
     }
   }
 `
@@ -95,30 +137,40 @@ function AdminTable() {
 
   useEffect(() => {
     if (data && data.getUsersByRole) {
-      const transformedData = data.getUsersByRole.slice() // create a shallow copy to avoid mutating the original array
-      .reverse().map((admin, index) => ({
-      id: index + 1,
-      author: <Author image={admin.image || null} name={admin.name} email={admin.email} />,
-      phone: admin.phone || "N/A",
-      address: admin.address || "N/A",
-      action: (
-        <MDBox display="flex" gap={1}>
-        <EditModal admin={admin} onSave={handleEdit}>
-          <EditIcon color="info" style={{ cursor: "pointer" }} />
-        </EditModal>
-        <DeleteIcon
-          color="error"
-          style={{ cursor: "pointer" }}
-          onClick={(e) => {
-          e.preventDefault()
-          handleDelete(admin)
-          }}
-        />
-        </MDBox>
-      ),
-      }))
+      const transformedData = data.getUsersByRole
+        .slice() // create a shallow copy to avoid mutating the original array
+        .reverse()
+        .map((admin, index) => ({
+          id: index + 1,
+          author: <Author image={admin.image || null} name={admin.name} email={admin.email} />,
+          phone: admin.phone || "N/A",
+          address: admin.address || "N/A",
+          zoneResponsabilite: (
+            <MDBox display="flex" alignItems="center">
+              <LocationOnIcon fontSize="small" color="info" sx={{ mr: 0.5 }} />
+              <MDTypography variant="caption" fontWeight="medium">
+                {admin.zoneResponsabilite || "N/A"}
+              </MDTypography>
+            </MDBox>
+          ),
+          action: (
+            <MDBox display="flex" gap={1}>
+              <EditModal admin={admin} onSave={handleEdit}>
+                <EditIcon color="info" style={{ cursor: "pointer" }} />
+              </EditModal>
+              <DeleteIcon
+                color="error"
+                style={{ cursor: "pointer" }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleDelete(admin)
+                }}
+              />
+            </MDBox>
+          ),
+          _id: admin._id, // Store the original ID for reference
+        }))
       setAdmins(transformedData)
-    
     }
   }, [data])
 
@@ -165,6 +217,7 @@ function AdminTable() {
             phone: updatedData.phone || null,
             address: updatedData.address || null,
             image: updatedData.image || null,
+            zoneResponsabilite: updatedData.zoneResponsabilite || null,
           },
         },
       })
@@ -184,9 +237,10 @@ function AdminTable() {
 
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Author", accessor: "author", width: "45%", align: "left" },
+    { Header: "Author", accessor: "author", width: "35%", align: "left" },
     { Header: "Phone", accessor: "phone", align: "center" },
     { Header: "Address", accessor: "address", align: "left" },
+    { Header: "Responsibility Zone", accessor: "zoneResponsabilite", align: "left" },
     { Header: "Action", accessor: "action", align: "center" },
   ]
 
@@ -241,9 +295,9 @@ function AdminTable() {
                   phone: formData.phone || null,
                   address: formData.address || null,
                   password: formData.password,
+                  zoneResponsabilite: formData.zoneResponsabilite || null,
                   ...(formData.file && { image: formData.file }), // Optional
-                }
-                
+                },
               },
             })
 
@@ -272,6 +326,7 @@ function EditModal({ admin, onSave, children }) {
     phone: admin?.phone || "",
     address: admin?.address || "",
     image: admin?.image || "",
+    zoneResponsabilite: admin?.zoneResponsabilite || "",
     file: null, // Add this line for file upload
   })
 
@@ -333,11 +388,23 @@ function EditModal({ admin, onSave, children }) {
             fullWidth
             margin="normal"
           />
-          <FileUploadField
-  label="Upload Image (optional)"
-  onChange={(file) => setFormData({ ...formData, file })}
-/>
-
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="responsibility-zone-label">Responsibility Zone</InputLabel>
+            <Select
+              labelId="responsibility-zone-label"
+              value={formData.zoneResponsabilite || ""}
+              onChange={(e) => setFormData({ ...formData, zoneResponsabilite: e.target.value })}
+              label="Responsibility Zone"
+            >
+              <MenuItem value="">None</MenuItem>
+              {Object.entries(TunisianRegion).map(([key, value]) => (
+                <MenuItem key={key} value={key}>
+                  {value}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FileUploadField label="Upload Image (optional)" onChange={(file) => setFormData({ ...formData, file })} />
         </DialogContent>
         <DialogActions>
           <MDButton onClick={() => setOpen(false)}>Cancel</MDButton>
@@ -356,6 +423,7 @@ EditModal.propTypes = {
     phone: PropTypes.string,
     address: PropTypes.string,
     image: PropTypes.string,
+    zoneResponsabilite: PropTypes.string,
   }).isRequired,
   onSave: PropTypes.func.isRequired,
   children: PropTypes.node,
@@ -369,7 +437,7 @@ function AddAdminModal({ open, onClose, onCreate }) {
     phone: "",
     address: "",
     password: "",
-    file: null, // Add this line for file upload
+    zoneResponsabilite: "",
   })
 
   const handleSave = () => {
@@ -425,10 +493,23 @@ function AddAdminModal({ open, onClose, onCreate }) {
           fullWidth
           margin="normal"
         />
-<FileUploadField
-  label="Upload Image (optional)"
-  onChange={(file) => setFormData({ ...formData, file })}
-/>
+        <FormControl fullWidth margin="normal">
+          <InputLabel id="responsibility-zone-label">Responsibility Zone</InputLabel>
+          <Select
+            labelId="responsibility-zone-label"
+            value={formData.zoneResponsabilite}
+            onChange={(e) => setFormData({ ...formData, zoneResponsabilite: e.target.value })}
+            label="Responsibility Zone"
+          >
+            <MenuItem value="">None</MenuItem>
+            {Object.entries(TunisianRegion).map(([key, value]) => (
+              <MenuItem key={key} value={key}>
+                {value}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {/* <FileUploadField label="Upload Image (optional)" onChange={(file) => setFormData({ ...formData, file })} /> */}
       </DialogContent>
       <DialogActions>
         <MDButton onClick={onClose}>Cancel</MDButton>
