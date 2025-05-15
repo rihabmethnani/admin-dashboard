@@ -642,15 +642,7 @@ function OrderTable() {
           <EditIcon fontSize="small" />
           &nbsp; Edit Status
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            console.log("Delete", selectedOrder)
-            handleCloseMenu()
-          }}
-        >
-          <DeleteIcon fontSize="small" />
-          &nbsp; Delete
-        </MenuItem>
+      
       </Menu>
     </DashboardLayout>
   )

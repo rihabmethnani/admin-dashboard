@@ -81,8 +81,21 @@ export default function App() {
 
 
 
-  const routes = currentUser?.role === 'ADMIN' ? routesAdmin :  currentUser?.role === 'ADMIN_ASSISTANT' ? routesAssistantAdmin : currentUser?.role === 'SUPER_ADMIN' ? routesSuperAdmin : routesAdmin
-
+  const routes = useMemo(() => {
+    switch (currentUser?.role) {
+      case 'ADMIN':
+        return routesAdmin;
+      case 'ADMIN_ASSISTANT':
+        return routesAssistantAdmin;
+      case 'SUPER_ADMIN':
+        return routesSuperAdmin;
+      case 'PARTNER':
+        return routesPartner;
+      default:
+        return routesAdmin;
+    }
+  }, [currentUser]);
+  
   // Cache for the rtl
   useMemo(() => {
     const cacheRtl = createCache({

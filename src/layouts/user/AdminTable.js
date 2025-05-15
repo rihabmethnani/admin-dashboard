@@ -75,20 +75,18 @@ const GET_ADMINS = gql`
 
 // Mutation pour mettre à jour un utilisateur
 const UPDATE_USER = gql`
-  mutation UpdateUser($id: String!, $updateUserDto: UpdateUserDto!) {
-    updateUser(id: $id, updateUserDto: $updateUserDto) {
-      _id
-      name
+ mutation UpdateAdminProfile($updateUserDto: UpdateUserDto!, $adminId: String) {
+  updateAdminProfile(updateUserDto: $updateUserDto, adminId: $adminId) {
+    name
       email
       phone
       address
-      image
+      
       zoneResponsabilite
-    }
   }
+}
 `
 
-// Mutation pour supprimer un utilisateur (soft remove)
 const SOFT_REMOVE_USER = gql`
   mutation SoftRemoveUser($id: String!) {
     softRemoveUser(id: $id) {
@@ -210,13 +208,12 @@ function AdminTable() {
 
       const { data: updatedUser } = await updateUserMutation({
         variables: {
-          id: updatedData._id,
+          adminId: updatedData._id,
           updateUserDto: {
             name: updatedData.name,
             email: updatedData.email,
             phone: updatedData.phone || null,
             address: updatedData.address || null,
-            image: updatedData.image || null,
             zoneResponsabilite: updatedData.zoneResponsabilite || null,
           },
         },
@@ -296,7 +293,6 @@ function AdminTable() {
                   address: formData.address || null,
                   password: formData.password,
                   zoneResponsabilite: formData.zoneResponsabilite || null,
-                  ...(formData.file && { image: formData.file }), // Optional
                 },
               },
             })
@@ -325,9 +321,7 @@ function EditModal({ admin, onSave, children }) {
     email: admin?.email || "",
     phone: admin?.phone || "",
     address: admin?.address || "",
-    image: admin?.image || "",
     zoneResponsabilite: admin?.zoneResponsabilite || "",
-    file: null, // Add this line for file upload
   })
 
   const handleSave = () => {
@@ -381,13 +375,7 @@ function EditModal({ admin, onSave, children }) {
             fullWidth
             margin="normal"
           />
-          <TextField
-            label="Image URL"
-            value={formData.image}
-            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-            fullWidth
-            margin="normal"
-          />
+        
           <FormControl fullWidth margin="normal">
             <InputLabel id="responsibility-zone-label">Responsibility Zone</InputLabel>
             <Select
@@ -404,7 +392,6 @@ function EditModal({ admin, onSave, children }) {
               ))}
             </Select>
           </FormControl>
-          <FileUploadField label="Upload Image (optional)" onChange={(file) => setFormData({ ...formData, file })} />
         </DialogContent>
         <DialogActions>
           <MDButton onClick={() => setOpen(false)}>Cancel</MDButton>
@@ -422,7 +409,6 @@ EditModal.propTypes = {
     email: PropTypes.string.isRequired,
     phone: PropTypes.string,
     address: PropTypes.string,
-    image: PropTypes.string,
     zoneResponsabilite: PropTypes.string,
   }).isRequired,
   onSave: PropTypes.func.isRequired,
