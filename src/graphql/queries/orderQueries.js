@@ -12,6 +12,22 @@ export const GET_ORDERS = gql`
     }
   }
 `;
+
+
+
+export const GET_ORDERS_BY_RESPONSIBILITY_ZONE = gql`
+  query GetOrdersByResponsibilityZone {
+    getOrdersByResponsibilityZone {
+      _id
+      status
+      partnerId
+      driverId
+      clientId
+      region
+    }
+  }
+`
+
 export const GET_USERS_BY_ROLE = gql`
   query GetUsersByRole($role: String!) {
     getUsersByRole(role: $role) {
@@ -55,5 +71,15 @@ export const GET_ORDER_HISTORY = gql`
       timestamp
     }
   }
-`
+`;
+
+const GET_DRIVER_LOCATION = gql`
+  query GetLastDriverLocation($driverId: String!) {
+    getLastDriverLocation(driverId: $driverId) {
+      lat
+      lng
+      timestamp
+    }
+  }
+`;
 

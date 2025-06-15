@@ -20,7 +20,6 @@ import {
   Divider,
   InputAdornment,
   IconButton,
-  Avatar,
   Box,
   Chip,
   CircularProgress,
@@ -40,9 +39,9 @@ import PersonIcon from "@mui/icons-material/Person"
 import LockIcon from "@mui/icons-material/Lock"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff"
-import ImageIcon from "@mui/icons-material/Image"
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline"
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar"
+import SearchIcon from "@mui/icons-material/Search"
 
 // GraphQL Query to get drivers
 const GET_DRIVERS = gql`
@@ -54,6 +53,7 @@ const GET_DRIVERS = gql`
       phone
       address
       image
+      createdAt
     }
   }
 `
@@ -101,25 +101,25 @@ const CREATE_DRIVER = gql`
 // Validation functions
 const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) ? "" : "Please enter a valid email address"
+  return emailRegex.test(email) ? "" : "Veuillez saisir une adresse email valide"
 }
 
 const validatePhone = (phone) => {
   // Allow empty phone or phone with only digits
-  return !phone || /^\d+$/.test(phone) ? "" : "Phone number must contain only digits"
+  return !phone || /^\d+$/.test(phone) ? "" : "Le numéro de téléphone ne doit contenir que des chiffres"
 }
 
 const validateRequired = (value, fieldName) => {
-  return value ? "" : `${fieldName} is required`
+  return value ? "" : `${fieldName} est requis`
 }
 
 const validatePasswordMatch = (password, confirmPassword) => {
-  return password === confirmPassword ? "" : "Passwords do not match"
+  return password === confirmPassword ? "" : "Les mots de passe ne correspondent pas"
 }
 
 const validatePasswordStrength = (password) => {
-  if (!password) return "Password is required"
-  if (password.length < 6) return "Password must be at least 6 characters long"
+  if (!password) return "Le mot de passe est requis"
+  if (password.length < 6) return "Le mot de passe doit contenir au moins 6 caractères"
   return ""
 }
 
@@ -132,6 +132,8 @@ function DriverTable() {
   const { searchTerm } = controller
   const [isAddDriverModalOpen, setIsAddDriverModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortOrder, setSortOrder] = useState("newest")
 
   const [updateUserMutation] = useMutation(UPDATE_DRIVER, {
     client: clientMicroservice1,
@@ -146,57 +148,71 @@ function DriverTable() {
 
   useEffect(() => {
     if (data && data.getUsersByRole) {
-      setDrivers(
-        data.getUsersByRole.map((driver, index) => ({
-          id: index + 1,
-          author: <Author image={driver.image || null} name={driver.name} email={driver.email} />,
-          phone: driver.phone ? (
-            <Chip
-              icon={<PhoneIcon fontSize="small" />}
-              label={driver.phone}
-              size="small"
-              color="info"
-              variant="outlined"
-            />
-          ) : (
-            "N/A"
-          ),
-          address: driver.address || "N/A",
-          action:
-            currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT" ? (
-              <MDBox display="flex" gap={1} justifyContent="center">
-                <EditModal driver={driver} onSave={handleEdit}>
-                  <IconButton size="small" color="info">
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </EditModal>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    handleDelete(driver)
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
+      const mappedDrivers = data.getUsersByRole.map((driver, index) => ({
+        id: index + 1,
+        author: <Author image={driver.image || null} name={driver.name} email={driver.email} />,
+        phone: driver.phone ? (
+          <Chip
+            icon={<PhoneIcon fontSize="small" />}
+            label={driver.phone}
+            size="small"
+            color="info"
+            variant="outlined"
+          />
+        ) : (
+          "N/A"
+        ),
+        address: driver.address || "N/A",
+        action:
+          currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT" ? (
+            <MDBox display="flex" gap={1} justifyContent="center">
+              <EditModal driver={driver} onSave={handleEdit}>
+                <IconButton size="small" color="info">
+                  <EditIcon fontSize="small" />
                 </IconButton>
-              </MDBox>
-            ) : null,
-          _id: driver._id, // Store the original ID for reference
-        })),
-      )
+              </EditModal>
+              <IconButton
+                size="small"
+                color="error"
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleDelete(driver)
+                }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </MDBox>
+          ) : null,
+        _id: driver._id, // Store the original ID for reference
+        createdAt: driver.createdAt ? new Date(driver.createdAt) : new Date(),
+        rawData: driver, // Store raw data for filtering
+      }))
+
+      setDrivers(mappedDrivers)
     }
   }, [data, currentUser])
 
-  const filteredDrivers = drivers.filter(
-    (driver) =>
-      driver.author.props.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.author.props.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredAndSortedDrivers = drivers
+    .filter((driver) => {
+      const searchLower = searchQuery.toLowerCase()
+      return (
+        driver.rawData.name.toLowerCase().includes(searchLower) ||
+        driver.rawData.email.toLowerCase().includes(searchLower) ||
+        (driver.rawData.phone && driver.rawData.phone.toLowerCase().includes(searchLower)) ||
+        (driver.rawData.address && driver.rawData.address.toLowerCase().includes(searchLower))
+      )
+    })
+    .sort((a, b) => {
+      if (sortOrder === "newest") {
+        return b.createdAt - a.createdAt
+      } else {
+        return a.createdAt - b.createdAt
+      }
+    })
 
   const handleDelete = async (driver) => {
     try {
-      const confirmed = window.confirm("Are you sure you want to delete this driver?")
+      const confirmed = window.confirm("Êtes-vous sûr de vouloir supprimer ce livreur ?")
       if (!confirmed) return
 
       setIsLoading(true)
@@ -204,12 +220,12 @@ function DriverTable() {
         variables: { id: driver._id },
       })
 
-      console.log("Driver deleted:", deletedUser)
+      console.log("Livreur supprimé:", deletedUser)
       await refetch()
-      alert("Driver deleted successfully!")
+      alert("Livreur supprimé avec succès !")
     } catch (error) {
-      console.error("Error deleting driver:", error.message)
-      alert("Failed to delete driver.")
+      console.error("Erreur lors de la suppression du livreur:", error.message)
+      alert("Échec de la suppression du livreur.")
     } finally {
       setIsLoading(false)
     }
@@ -218,7 +234,7 @@ function DriverTable() {
   const handleEdit = async (updatedData) => {
     try {
       if (!updatedData._id) {
-        throw new Error("Driver ID is missing.")
+        throw new Error("L'ID du livreur est manquant.")
       }
 
       setIsLoading(true)
@@ -235,12 +251,12 @@ function DriverTable() {
         },
       })
 
-      console.log("Driver updated:", updatedUser)
+      console.log("Livreur mis à jour:", updatedUser)
       await refetch()
-      alert("Driver updated successfully!")
+      alert("Livreur mis à jour avec succès !")
     } catch (error) {
-      console.error("Error updating driver:", error.message)
-      alert("Failed to update driver.")
+      console.error("Erreur lors de la mise à jour du livreur:", error.message)
+      alert("Échec de la mise à jour du livreur.")
     } finally {
       setIsLoading(false)
     }
@@ -253,7 +269,7 @@ function DriverTable() {
         <MDBox display="flex" justifyContent="center" alignItems="center" height="70vh">
           <CircularProgress color="warning" />
           <MDTypography variant="h5" color="text" ml={2}>
-            Loading drivers...
+            Chargement des livreurs...
           </MDTypography>
         </MDBox>
       </DashboardLayout>
@@ -265,7 +281,7 @@ function DriverTable() {
         <DashboardNavbar />
         <MDBox display="flex" justifyContent="center" alignItems="center" height="70vh">
           <MDTypography variant="h5" color="error">
-            Error: {error.message}
+            Erreur : {error.message}
           </MDTypography>
         </MDBox>
       </DashboardLayout>
@@ -273,17 +289,17 @@ function DriverTable() {
 
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Driver", accessor: "author", width: "45%", align: "left" },
-    { Header: "Phone", accessor: "phone", align: "center" },
-    { Header: "Address", accessor: "address", align: "left" },
+    { Header: "Livreur", accessor: "author", width: "45%", align: "left" },
+    { Header: "Téléphone", accessor: "phone", align: "center" },
+    { Header: "Adresse", accessor: "address", align: "left" },
     { Header: "Actions", accessor: "action", align: "center" },
   ]
 
   const unpermissionColumns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Driver", accessor: "author", width: "45%", align: "left" },
-    { Header: "Phone", accessor: "phone", align: "center" },
-    { Header: "Address", accessor: "address", align: "left" },
+    { Header: "Livreur", accessor: "author", width: "45%", align: "left" },
+    { Header: "Téléphone", accessor: "phone", align: "center" },
+    { Header: "Adresse", accessor: "address", align: "left" },
   ]
 
   const permissionColumns =
@@ -295,19 +311,58 @@ function DriverTable() {
       <MDBox pt={6} pb={3}>
         <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <MDBox>
-           
+            <MDTypography variant="h4" fontWeight="medium">
+              Gestion des Livreurs
+            </MDTypography>
+            <MDTypography variant="body2" color="text">
+              Liste des livreurs de votre organisation
+            </MDTypography>
           </MDBox>
 
-          {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
-            <MDButton
-              variant="gradient"
-              color="warning"
-              onClick={() => setIsAddDriverModalOpen(true)}
-              startIcon={<AddCircleOutlineIcon />}
-            >
-              Add Driver
-            </MDButton>
-          )}
+          <MDBox display="flex" alignItems="center" gap={2}>
+            <TextField
+              label="Rechercher"
+              variant="outlined"
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              placeholder="Nom, email, téléphone..."
+            />
+
+            <Box sx={{ minWidth: 120 }}>
+              <TextField
+                select
+                label="Trier par"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                size="small"
+                SelectProps={{
+                  native: true,
+                }}
+              >
+                <option value="newest">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+              </TextField>
+            </Box>
+
+            {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
+              <MDButton
+                variant="gradient"
+                color="warning"
+                onClick={() => setIsAddDriverModalOpen(true)}
+                startIcon={<AddCircleOutlineIcon />}
+              >
+                Ajouter un Livreur
+              </MDButton>
+            )}
+          </MDBox>
         </MDBox>
 
         <Grid container spacing={6}>
@@ -317,12 +372,11 @@ function DriverTable() {
                 <DataTable
                   table={{
                     columns: permissionColumns,
-                    rows: filteredDrivers,
+                    rows: filteredAndSortedDrivers,
                   }}
                   isSorted={false}
                   entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
                   showTotalEntries={true}
-                  
                   noEndBorder
                 />
               </MDBox>
@@ -351,12 +405,12 @@ function DriverTable() {
               },
             })
 
-            console.log("New driver created:", newDriver)
-            alert("Driver created successfully!")
+            console.log("Nouveau livreur créé:", newDriver)
+            alert("Livreur créé avec succès !")
             refetch()
           } catch (error) {
-            console.error("Error creating driver:", error.message)
-            alert("Failed to create driver.")
+            console.error("Erreur lors de la création du livreur:", error.message)
+            alert("Échec de la création du livreur.")
           } finally {
             setIsLoading(false)
           }
@@ -387,7 +441,7 @@ function EditModal({ driver, onSave, children }) {
 
   const validateForm = () => {
     const newErrors = {
-      name: validateRequired(formData.name, "Name"),
+      name: validateRequired(formData.name, "Nom"),
       email: validateEmail(formData.email),
       phone: validatePhone(formData.phone),
     }
@@ -400,7 +454,7 @@ function EditModal({ driver, onSave, children }) {
 
   const handleSave = () => {
     if (!formData._id) {
-      alert("Driver ID is missing. Cannot update.")
+      alert("L'ID du livreur est manquant. Impossible de mettre à jour.")
       return
     }
 
@@ -437,16 +491,17 @@ function EditModal({ driver, onSave, children }) {
           },
         }}
       >
-        <DialogTitle sx={{ bgcolor: "white", color: "white", display: "flex", alignItems: "center" }}>
-          <EditIcon sx={{ mr: 1 }} /> Edit Driver
+        <DialogTitle sx={{ bgcolor: "white", color: "black", display: "flex", alignItems: "center" }}>
+          <EditIcon sx={{ mr: 1, color: "warning.main" }} />
+          Modifier le Livreur
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Box display="flex" justifyContent="center" mb={3}>
-           
+            {/* Avatar section if needed */}
           </Box>
 
           <TextField
-            label="Name"
+            label="Nom"
             value={formData.name}
             onChange={(e) => handleChange("name", e.target.value)}
             fullWidth
@@ -480,7 +535,7 @@ function EditModal({ driver, onSave, children }) {
             }}
           />
           <TextField
-            label="Phone"
+            label="Téléphone"
             value={formData.phone}
             onChange={(e) => handleChange("phone", e.target.value)}
             fullWidth
@@ -496,7 +551,7 @@ function EditModal({ driver, onSave, children }) {
             }}
           />
           <TextField
-            label="Address"
+            label="Adresse"
             value={formData.address}
             onChange={(e) => handleChange("address", e.target.value)}
             fullWidth
@@ -509,14 +564,13 @@ function EditModal({ driver, onSave, children }) {
               ),
             }}
           />
-       
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <MDButton onClick={() => setOpen(false)} color="warning" variant="outlined">
-            Cancel
+            Annuler
           </MDButton>
           <MDButton onClick={handleSave} color="warning" variant="gradient">
-            Save Changes
+            Enregistrer les Modifications
           </MDButton>
         </DialogActions>
       </Dialog>
@@ -563,7 +617,7 @@ function AddDriverModal({ open, onClose, onCreate }) {
 
   const validateForm = () => {
     const newErrors = {
-      name: validateRequired(formData.name, "Name"),
+      name: validateRequired(formData.name, "Nom"),
       email: validateEmail(formData.email),
       phone: validatePhone(formData.phone),
       password: validatePasswordStrength(formData.password),
@@ -637,24 +691,25 @@ function AddDriverModal({ open, onClose, onCreate }) {
         },
       }}
     >
-      <DialogTitle sx={{ bgcolor: "white", color: "white", display: "flex", alignItems: "center" }}>
-        <DirectionsCarIcon sx={{ mr: 1 }} /> Add New Driver
+      <DialogTitle sx={{ bgcolor: "white", color: "black", display: "flex", alignItems: "center" }}>
+        <DirectionsCarIcon sx={{ mr: 1, color: "warning.main" }} />
+        Ajouter un Nouveau Livreur
       </DialogTitle>
       <DialogContent sx={{ pt: 3 }}>
         <MDBox mb={2}>
           <MDTypography variant="body2" color="text">
-            Create a new driver account. All fields marked with * are required.
+            Créer un nouveau compte livreur. Tous les champs marqués d&apos;un * sont obligatoires.
           </MDTypography>
         </MDBox>
 
         <Divider sx={{ mb: 3 }} />
 
         <MDTypography variant="subtitle2" fontWeight="medium" color="warning" mb={2}>
-          Personal warningrmation
+          Informations Personnelles
         </MDTypography>
 
         <TextField
-          label="Name"
+          label="Nom"
           value={formData.name}
           onChange={(e) => handleChange("name", e.target.value)}
           fullWidth
@@ -688,7 +743,7 @@ function AddDriverModal({ open, onClose, onCreate }) {
           }}
         />
         <TextField
-          label="Phone"
+          label="Téléphone"
           value={formData.phone}
           onChange={(e) => handleChange("phone", e.target.value)}
           fullWidth
@@ -704,7 +759,7 @@ function AddDriverModal({ open, onClose, onCreate }) {
           }}
         />
         <TextField
-          label="Address"
+          label="Adresse"
           value={formData.address}
           onChange={(e) => handleChange("address", e.target.value)}
           fullWidth
@@ -721,11 +776,11 @@ function AddDriverModal({ open, onClose, onCreate }) {
         <Divider sx={{ my: 3 }} />
 
         <MDTypography variant="subtitle2" fontWeight="medium" color="warning" mb={2}>
-          Account Security
+          Sécurité du Compte
         </MDTypography>
 
         <TextField
-          label="Password"
+          label="Mot de passe"
           type={showPassword ? "text" : "password"}
           value={formData.password}
           onChange={(e) => handleChange("password", e.target.value)}
@@ -750,7 +805,7 @@ function AddDriverModal({ open, onClose, onCreate }) {
           }}
         />
         <TextField
-          label="Confirm Password"
+          label="Confirmer le mot de passe"
           type={showConfirmPassword ? "text" : "password"}
           value={formData.confirmPassword}
           onChange={(e) => handleChange("confirmPassword", e.target.value)}
@@ -775,15 +830,16 @@ function AddDriverModal({ open, onClose, onCreate }) {
           }}
         />
         <FormHelperText sx={{ mt: 2 }}>
-          Fields marked with * are required. Phone numbers must contain only digits.
+          Les champs marqués d&apos;un * sont obligatoires. Les numéros de téléphone ne doivent contenir que des
+          chiffres.
         </FormHelperText>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>
         <MDButton onClick={onClose} color="warning" variant="outlined">
-          Cancel
+          Annuler
         </MDButton>
         <MDButton onClick={handleSave} color="warning" variant="gradient">
-          Create Account
+          Créer le Compte
         </MDButton>
       </DialogActions>
     </Dialog>

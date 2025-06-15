@@ -34,7 +34,7 @@ import MDAvatar from "components/MDAvatar"
 import breakpoints from "assets/theme/base/breakpoints"
 
 // Images
-import burceMars from "assets/images/bruce-mars.jpg"
+import burceMars from "assets/images/image.png"
 import backgroundImage from "assets/images/profile-bg.jpg"
 import { useAuth } from "context/AuthContext"
 

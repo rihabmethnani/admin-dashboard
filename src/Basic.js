@@ -79,7 +79,7 @@ function Basic() {
           textAlign="center"
         >
           <MDTypography variant="h4" fontWeight="medium" color="white" mt={1}>
-            Sign in
+            Connexion
           </MDTypography>
         </MDBox>
         <MDBox pt={4} pb={3} px={3}>
@@ -96,7 +96,7 @@ function Basic() {
             <MDBox mb={2}>
               <MDInput
                 type="password"
-                label="Password"
+                label="Mot de passe"
                 fullWidth
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -114,7 +114,7 @@ function Basic() {
                 onClick={() => setRememberMe(!rememberMe)}
                 sx={{ cursor: 'pointer', userSelect: 'none', ml: -1 }}
               >
-                &nbsp;&nbsp;Remember me
+                &nbsp;&nbsp;Se souvenir de moi
               </MDTypography>
             </MDBox>
             <MDBox mt={4} mb={1}>
@@ -125,12 +125,12 @@ function Basic() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? 'Connexion en cours...' : 'Se connecter'}
               </MDButton>
             </MDBox>
             <MDBox mt={3} mb={1} textAlign="center">
               <MDTypography variant="button" color="text">
-                Don&apos;t have an account?{' '}
+                Vous n&apos;avez pas de compte ?{' '}
                 <MDTypography
                   component={Link}
                   to="/authentication/sign-up"
@@ -139,14 +139,14 @@ function Basic() {
                   fontWeight="medium"
                   textGradient
                 >
-                  Sign up
+                  S&apos;inscrire
                 </MDTypography>
               </MDTypography>
             </MDBox>
             {error && (
               <MDBox mt={2}>
                 <MDTypography variant="caption" color="error">
-                  Invalid credentials. Please try again.
+                  Identifiants invalides. Veuillez réessayer.
                 </MDTypography>
               </MDBox>
             )}

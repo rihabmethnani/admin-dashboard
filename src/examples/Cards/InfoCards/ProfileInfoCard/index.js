@@ -37,7 +37,7 @@ import HomeIcon from "@mui/icons-material/Home"
 import ImageIcon from "@mui/icons-material/Image"
 import EditIcon from "@mui/icons-material/Edit"
 
-// Define all mutations
+// Définir toutes les mutations
 const UPDATE_SUPER_ADMIN_PROFILE = gql`
   mutation UpdateSuperAdminProfile($updateUserDto: UpdateUserDto!) {
     updateSuperAdminProfile(updateUserDto: $updateUserDto) {
@@ -86,8 +86,8 @@ const UPDATE_ASSISTANT_ADMIN_PROFILE = gql`
   }
 `
 
-// Theme colors
-const WARNING_COLOR = "#ff9800" // Orange warning color
+// Couleurs du thème
+const WARNING_COLOR = "#ff9800" // Couleur orange d'avertissement
 const WARNING_LIGHT = alpha("#ff9800", 0.1)
 
 function ProfileInfoCard({ title, description, info, social, action, shadow }) {
@@ -96,7 +96,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
   const [errorMessage, setErrorMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
 
-  // Initialize form values with current user data
+  // Initialiser les valeurs du formulaire avec les données de l'utilisateur actuel
   const [formValues, setFormValues] = useState({
     name: info.fullName || "",
     email: info.email || "",
@@ -105,7 +105,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
     image: info.image || "",
   })
 
-  // Update form values when info prop changes
+  // Mettre à jour les valeurs du formulaire lorsque la prop info change
   useEffect(() => {
     setFormValues({
       name: info.fullName || "",
@@ -116,7 +116,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
     })
   }, [info])
 
-  // Form validation
+  // Validation du formulaire
   const [errors, setErrors] = useState({
     name: "",
     email: "",
@@ -125,20 +125,20 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email) ? "" : "Please enter a valid email address"
+    return emailRegex.test(email) ? "" : "Veuillez saisir une adresse email valide"
   }
 
   const validatePhone = (phone) => {
-    return !phone || /^\d+$/.test(phone) ? "" : "Phone must contain only numbers"
+    return !phone || /^\d+$/.test(phone) ? "" : "Le téléphone ne doit contenir que des chiffres"
   }
 
   const validateRequired = (value, fieldName) => {
-    return value ? "" : `${fieldName} is required`
+    return value ? "" : `${fieldName} est requis`
   }
 
   const validateForm = () => {
     const newErrors = {
-      name: validateRequired(formValues.name, "Name"),
+      name: validateRequired(formValues.name, "Nom"),
       email: validateEmail(formValues.email),
       phone: validatePhone(formValues.phone),
     }
@@ -147,7 +147,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
     return !Object.values(newErrors).some((error) => error !== "")
   }
 
-  // Determine which mutation to use based on user role
+  // Déterminer quelle mutation utiliser en fonction du rôle de l'utilisateur
   const { mutation, mutationName, idField } = useMemo(() => {
     const userRole = currentUser?.role?.toLowerCase() || ""
 
@@ -181,15 +181,15 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
           ...data[mutationName],
         })
       }
-      setSuccessMessage("Profile updated successfully!")
+      setSuccessMessage("Profil mis à jour avec succès !")
       setTimeout(() => {
         setOpen(false)
         setSuccessMessage("")
       }, 2000)
     },
     onError: (err) => {
-      console.error("Update failed", err)
-      setErrorMessage(err.message || "Failed to update profile. Please try again.")
+      console.error("Échec de la mise à jour", err)
+      setErrorMessage(err.message || "Échec de la mise à jour du profil. Veuillez réessayer.")
     },
   })
 
@@ -212,7 +212,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
     }
 
     try {
-      // Create base variables object
+      // Créer l'objet de variables de base
       const variables = {
         updateUserDto: {
           name: formValues.name,
@@ -223,14 +223,14 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
         },
       }
 
-      // Add ID field if needed based on role
+      // Ajouter le champ ID si nécessaire selon le rôle
       if (idField) {
         variables[idField] = currentUser?._id
       }
 
       await updateProfile({ variables })
     } catch (err) {
-      // Error is handled in onError callback
+      // L'erreur est gérée dans le callback onError
     }
   }
 
@@ -338,7 +338,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
           }}
         >
           <MDTypography variant="h6" color="white">
-            Edit Profile {currentUser?.role ? `(${currentUser.role})` : ""}
+            Modifier le Profil {currentUser?.role ? `(${currentUser.role})` : ""}
           </MDTypography>
         </DialogTitle>
         <DialogContent sx={{ pt: 3, px: 3 }}>
@@ -384,14 +384,14 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
               {formValues.name?.charAt(0) || "U"}
             </Avatar>
             <MDTypography variant="caption" color="text" sx={{ mt: 1, mb: 2 }}>
-              {currentUser?.role || "User"} Profile
+              Profil {currentUser?.role || "Utilisateur"}
             </MDTypography>
           </Box>
 
           <Box sx={{ mt: 4 }}>
             <TextField
               margin="dense"
-              label="Name"
+              label="Nom"
               name="name"
               value={formValues.name}
               onChange={handleChange}
@@ -448,7 +448,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
             />
             <TextField
               margin="dense"
-              label="Phone"
+              label="Téléphone"
               name="phone"
               value={formValues.phone}
               onChange={handleChange}
@@ -475,7 +475,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
             />
             <TextField
               margin="dense"
-              label="Address"
+              label="Adresse"
               name="address"
               value={formValues.address}
               onChange={handleChange}
@@ -500,9 +500,9 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
                 },
               }}
             />
-            <TextField
+            {/* <TextField
               margin="dense"
-              label="Image URL"
+              label="URL de l'Image"
               name="image"
               value={formValues.image}
               onChange={handleChange}
@@ -524,12 +524,12 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
                   color: WARNING_COLOR,
                 },
               }}
-            />
+            /> */}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3, justifyContent: "space-between" }}>
           <MDButton onClick={() => setOpen(false)} variant="outlined" color="warning" disabled={loading}>
-            Cancel
+            Annuler
           </MDButton>
           <MDButton
             onClick={handleSubmit}
@@ -543,7 +543,7 @@ function ProfileInfoCard({ title, description, info, social, action, shadow }) {
               },
             }}
           >
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? "Enregistrement..." : "Enregistrer les Modifications"}
           </MDButton>
         </DialogActions>
       </Dialog>

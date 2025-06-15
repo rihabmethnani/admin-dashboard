@@ -16,7 +16,6 @@ import MDTypography from "components/MDTypography"
 // Material Dashboard 2 React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout"
 import DashboardNavbar from "examples/Navbars/DashboardNavbar"
-import Footer from "examples/Footer"
 
 // Custom components
 import OrderStatusCard from "components/OrderStatusCard"
@@ -60,38 +59,86 @@ const statusCardConfigs = {
   EN_ATTENTE: {
     icon: "hourglass_empty",
     color: "warning",
-    title: "Pending Orders",
-    description: "Orders waiting to be processed",
+    title: "Commandes en Attente",
+    description: "En attente d'être pris en charge par un livreur",
   },
-  ASSIGNE: {
+  ATTRIBUÉ: {
     icon: "assignment_ind",
     color: "info",
-    title: "Assigned Orders",
-    description: "Orders assigned to drivers",
+    title: "Commandes Attribuées",
+    description: "Attribué à un livreur",
   },
-  ECHEC_LIVRAISON: {
+  EN_LIVRAISON: {
+    icon: "local_shipping",
+    color: "primary",
+    title: "En Cours de Livraison",
+    description: "En cours de livraison",
+  },
+  LIVRÉ: {
+    icon: "check_circle",
+    color: "success",
+    title: "Commandes Livrées",
+    description: "Livré avec succès",
+  },
+  ÉCHEC_LIVRAISON: {
     icon: "error_outline",
     color: "error",
-    title: "Failed Deliveries",
-    description: "Orders that failed to be delivered",
+    title: "Échecs de Livraison",
+    description: "Échec de la tentative de livraison",
   },
-  RETOURNE: {
+  RETOURNÉ: {
     icon: "assignment_return",
     color: "dark",
-    title: "Returned Orders",
-    description: "Orders returned by customers",
+    title: "Commandes Retournées",
+    description: "Retourné au partenaire",
+  },
+  ANNULÉ: {
+    icon: "cancel",
+    color: "error",
+    title: "Commandes Annulées",
+    description: "Annulé par le client ou le partenaire",
+  },
+  EN_ATTENTE_RÉSOLUTION: {
+    icon: "help_outline",
+    color: "warning",
+    title: "En Attente de Résolution",
+    description: "En attente de la résolution d'un problème",
+  },
+  RETARDÉ: {
+    icon: "schedule",
+    color: "warning",
+    title: "Livraisons Retardées",
+    description: "Livraison retardée",
+  },
+  PARTIELLEMENT_LIVRÉ: {
+    icon: "inventory",
+    color: "info",
+    title: "Partiellement Livrées",
+    description: "Une partie du colis a été livrée",
+  },
+  EN_ENTREPÔT: {
+    icon: "warehouse",
+    color: "secondary",
+    title: "En Entrepôt",
+    description: "Stocké temporairement dans un entrepôt",
+  },
+  EN_ATTENTE_CONFIRMATION: {
+    icon: "pending_actions",
+    color: "warning",
+    title: "En Attente de Confirmation",
+    description: "En attente de confirmation du client",
+  },
+  EN_VÉRIFICATION: {
+    icon: "verified",
+    color: "info",
+    title: "En Vérification",
+    description: "En cours de vérification",
   },
   RELANCE: {
     icon: "replay",
     color: "primary",
-    title: "Relaunch Orders",
-    description: "Orders that need to be relaunched",
-  },
-  LIVRE: {
-    icon: "check_circle",
-    color: "success",
-    title: "Delivered Orders",
-    description: "Successfully delivered orders",
+    title: "Commandes Relancées",
+    description: "Relance effectuée auprès du livreur",
   },
 }
 
@@ -152,10 +199,9 @@ function Dashboard() {
       <MDBox py={3}>
         {/* Header with refresh button */}
         <MDBox mb={3} display="flex" justifyContent="space-between" alignItems="center">
-          
           <MDBox display="flex" alignItems="center">
             <MDTypography variant="body2" color="text" mr={2}>
-              Last updated: {refreshTime.toLocaleTimeString()}
+              Dernière mise à jour : {refreshTime.toLocaleTimeString("fr-FR")}
             </MDTypography>
             <MDBox
               display="flex"
@@ -197,7 +243,7 @@ function Dashboard() {
                   </MDBox>
                   <MDBox textAlign="right">
                     <MDTypography variant="button" color="text" fontWeight="light">
-                      Admin Assistants
+                      Assistants Administratifs
                     </MDTypography>
                     <MDTypography variant="h4">{userCountsData?.getUserCounts?.adminAssistants || 0}</MDTypography>
                   </MDBox>
@@ -205,7 +251,8 @@ function Dashboard() {
                 <Divider sx={{ my: 2 }} />
                 <MDBox display="flex" alignItems="center">
                   <MDTypography variant="button" color="text" lineHeight="1.5">
-                    Team members with administrative privileges
+                   Membres de l&rsquo;équipe avec privilèges administratifs
+
                   </MDTypography>
                 </MDBox>
               </MDBox>
@@ -231,7 +278,7 @@ function Dashboard() {
                   </MDBox>
                   <MDBox textAlign="right">
                     <MDTypography variant="button" color="text" fontWeight="light">
-                      Drivers
+                      Livreurs
                     </MDTypography>
                     <MDTypography variant="h4">{userCountsData?.getUserCounts?.drivers || 0}</MDTypography>
                   </MDBox>
@@ -239,7 +286,7 @@ function Dashboard() {
                 <Divider sx={{ my: 2 }} />
                 <MDBox display="flex" alignItems="center">
                   <MDTypography variant="button" color="text" lineHeight="1.5">
-                    Delivery personnel available for order fulfillment
+                    Personnel de livraison disponible pour les commandes
                   </MDTypography>
                 </MDBox>
               </MDBox>
@@ -265,7 +312,7 @@ function Dashboard() {
                   </MDBox>
                   <MDBox textAlign="right">
                     <MDTypography variant="button" color="text" fontWeight="light">
-                      Active Partners
+                      Partenaires Actifs
                     </MDTypography>
                     <MDTypography variant="h4">{partnerCountsData?.getPartnerCounts?.active || 0}</MDTypography>
                   </MDBox>
@@ -273,7 +320,7 @@ function Dashboard() {
                 <Divider sx={{ my: 2 }} />
                 <MDBox display="flex" alignItems="center" justifyContent="space-between">
                   <MDTypography variant="button" color="text" lineHeight="1.5">
-                    Verified business partners
+                    Partenaires commerciaux vérifiés
                   </MDTypography>
                   <MDTypography variant="button" color="success" fontWeight="bold">
                     {partnerCountsData?.getPartnerCounts?.total
@@ -304,7 +351,7 @@ function Dashboard() {
                   </MDBox>
                   <MDBox textAlign="right">
                     <MDTypography variant="button" color="text" fontWeight="light">
-                      Inactive Partners
+                      Partenaires Inactifs
                     </MDTypography>
                     <MDTypography variant="h4">{partnerCountsData?.getPartnerCounts?.inactive || 0}</MDTypography>
                   </MDBox>
@@ -312,7 +359,7 @@ function Dashboard() {
                 <Divider sx={{ my: 2 }} />
                 <MDBox display="flex" alignItems="center" justifyContent="space-between">
                   <MDTypography variant="button" color="text" lineHeight="1.5">
-                    Partners pending verification
+                    Partenaires en attente de vérification
                   </MDTypography>
                   <MDTypography variant="button" color="warning" fontWeight="bold">
                     {partnerCountsData?.getPartnerCounts?.total
@@ -330,7 +377,7 @@ function Dashboard() {
           <MDBox p={3}>
             <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <MDTypography variant="h5" fontWeight="medium">
-                Order Statistics
+                Statistiques des Commandes
               </MDTypography>
               <MDBox
                 display="flex"
@@ -344,7 +391,7 @@ function Dashboard() {
                 shadow="sm"
               >
                 <MDTypography variant="button" fontWeight="bold">
-                  Total: {getTotalOrders()}
+                  Total : {getTotalOrders()}
                 </MDTypography>
               </MDBox>
             </MDBox>
@@ -363,7 +410,7 @@ function Dashboard() {
                       percentage={{
                         color: config.color,
                         amount: `${Math.round((item.count / getTotalOrders()) * 100)}%`,
-                        label: "of total orders",
+                        label: "du total des commandes",
                       }}
                     />
                   </Grid>
@@ -377,7 +424,7 @@ function Dashboard() {
         <Card sx={{ mt: 3 }}>
           <MDBox p={3}>
             <MDTypography variant="h5" fontWeight="medium" mb={3}>
-              Complete Order Status Breakdown
+              Répartition Complète des Statuts de Commande
             </MDTypography>
             <Grid container spacing={2}>
               {orderCountsData?.getOrdersCountByStatus?.map((item) => (
@@ -421,7 +468,6 @@ function Dashboard() {
           </MDBox>
         </Card>
       </MDBox>
-      
     </DashboardLayout>
   )
 }

@@ -39,45 +39,16 @@ import ErrorIcon from "@mui/icons-material/Error"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import DoneAllIcon from "@mui/icons-material/DoneAll"
 import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { clientMicroservice1 } from "apolloClients/microservice1"
+import { getStatusKey, getPriorityKey, IncidentStatus, IncidentPriority } from "./enum-utils"
 
-// Enums for incidents
-const IncidentStatus = {
-  OPEN: "Open",
-  IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-  CANCELLED: "Cancelled",
-}
-
-const IncidentPriority = {
-  LOW: "Low",
-  MEDIUM: "Medium",
-  HIGH: "High",
-  CRITICAL: "Critical",
-}
-
-const IncidentType = {
-  DAMAGED_PACKAGE: "Damaged Package",
-  INCORRECT_ADDRESS: "Incorrect Address",
-  CUSTOMER_NOT_FOUND: "Customer Not Found",
-  LOST_PACKAGE: "Lost Package",
-  WEATHER_DELAY: "Weather Delay",
-  TRAFFIC_DELAY: "Traffic Delay",
-  REFUSED_PACKAGE: "Refused Package",
-  OTHER: "Other",
-}
-
-// GraphQL Queries and Mutations
+// Requêtes et mutations GraphQL
 const GET_INCIDENT_BY_ID = gql`
   query GetIncidentById($incidentId: String!) {
     getIncidentById(incidentId: $incidentId) {
       _id
-      orderId {
-        _id
-        orderNumber
-        clientId
-        deliveryAddress
-        status
-      }
+      orderId
       reportedBy
       incidentType
       customDescription
@@ -99,13 +70,25 @@ const GET_INCIDENT_BY_ID = gql`
   }
 `
 
-// Query to get client address by ID
-const GET_CLIENT_ADDRESS = gql`
-  query GetClientById($id: String!) {
-    getClientById(id: $id) {
+const GET_ORDER_BY_ID = gql`
+  query GetOrderById($id: String!) {
+    order(id: $id) {
       _id
-      address
+      clientId
+      amount
+      description
+      status
+    }
+  }
+`
+
+const GET_USER_BY_ID = gql`
+  query GetUserById($id: String!) {
+    getUserById(id: $id) {
+      _id
       name
+      address
+      phone
     }
   }
 `
@@ -121,9 +104,6 @@ const UPDATE_INCIDENT = gql`
         userId
         createdAt
       }
-      resolvedBy
-      resolvedAt
-      resolutionNotes
       updatedAt
     }
   }
@@ -139,16 +119,38 @@ function IncidentDetails() {
   const [resolutionNotes, setResolutionNotes] = useState("")
   const [newStatus, setNewStatus] = useState("")
   const [newPriority, setNewPriority] = useState("")
-  const [clientInfo, setClientInfo] = useState({ address: "Loading...", name: "Loading..." })
+  const [orderInfo, setOrderInfo] = useState({
+    clientId: null,
+    status: "Chargement...",
+    amount: 0,
+    description: "Chargement...",
+  })
+  const [clientInfo, setClientInfo] = useState({
+    address: "Chargement...",
+    name: "Chargement...",
+    phone: "Chargement...",
+  })
 
-  // Query to get incident details
+  // Requête pour obtenir les détails de l'incident
   const { loading, error, data, refetch } = useQuery(GET_INCIDENT_BY_ID, {
     variables: { incidentId: id },
     client: clientMicroservice2,
-    fetchPolicy: "network-only", // Don't use cache
+    fetchPolicy: "network-only",
   })
 
-  // Mutation to update incident
+  const { loading: orderLoading, data: orderData } = useQuery(GET_ORDER_BY_ID, {
+    variables: { id: data?.getIncidentById?.orderId },
+    client: clientMicroservice1,
+    skip: !data?.getIncidentById?.orderId,
+  })
+
+  const { loading: clientLoading, data: clientData } = useQuery(GET_USER_BY_ID, {
+    variables: { id: orderInfo.clientId },
+    client: clientMicroservice1,
+    skip: !orderInfo.clientId,
+  })
+
+  // Mutation pour mettre à jour l'incident
   const [updateIncidentMutation] = useMutation(UPDATE_INCIDENT, {
     client: clientMicroservice2,
     onCompleted: () => {
@@ -156,44 +158,40 @@ function IncidentDetails() {
     },
   })
 
-  // Update states when data is loaded
+  // Mettre à jour les états lorsque les données sont chargées
   useEffect(() => {
     if (data && data.getIncidentById) {
       const incident = data.getIncidentById
       setNewStatus(incident.status)
       setNewPriority(incident.priority)
-
-      // Fetch client info if clientId is available
-      if (incident.orderId?.clientId) {
-        fetchClientInfo(incident.orderId.clientId)
-      }
     }
   }, [data])
 
-  // Function to fetch client info
-  const fetchClientInfo = async (clientId) => {
-    try {
-      const { data } = await clientMicroservice2.query({
-        query: GET_CLIENT_ADDRESS,
-        variables: { id: clientId },
+  useEffect(() => {
+    if (orderData?.order) {
+      setOrderInfo({
+        clientId: orderData.order.clientId,
+        status: orderData.order.status,
+        amount: orderData.order.amount,
+        description: orderData.order.description,
       })
-
-      if (data?.getClientById) {
-        setClientInfo({
-          address: data.getClientById.address || "No address available",
-          name: data.getClientById.name || "Unknown client",
-        })
-      }
-    } catch (error) {
-      console.error("Error fetching client info:", error)
-      setClientInfo({ address: "Error loading address", name: "Error loading name" })
     }
-  }
+  }, [orderData])
 
-  // Event handlers
+  useEffect(() => {
+    if (clientData?.getUserById) {
+      setClientInfo({
+        address: clientData.getUserById.address || "Aucune adresse disponible",
+        name: clientData.getUserById.name || "Client inconnu",
+        phone: clientData.getUserById.phone || "Aucun téléphone",
+      })
+    }
+  }, [clientData])
+
+  // Gestionnaires d'événements
   const handleAddComment = async () => {
     if (!newComment.trim()) {
-      alert("Please enter a comment.")
+      alert("Veuillez saisir un commentaire.")
       return
     }
 
@@ -210,16 +208,16 @@ function IncidentDetails() {
       setNewComment("")
       setIsAddCommentModalOpen(false)
       refetch()
-      alert("Comment added successfully!")
+      alert("Commentaire ajouté avec succès !")
     } catch (error) {
-      console.error("Error adding comment:", error.message)
-      alert("Failed to add comment.")
+      console.error("Erreur lors de l'ajout du commentaire:", error.message)
+      alert("Échec de l'ajout du commentaire: " + error.message)
     }
   }
 
   const handleResolveIncident = async () => {
     if (!resolutionNotes.trim()) {
-      alert("Please enter resolution notes.")
+      alert("Veuillez saisir des notes de résolution.")
       return
     }
 
@@ -237,10 +235,10 @@ function IncidentDetails() {
       setResolutionNotes("")
       setIsResolveModalOpen(false)
       refetch()
-      alert("Incident resolved successfully!")
+      alert("Incident résolu avec succès !")
     } catch (error) {
-      console.error("Error resolving incident:", error.message)
-      alert("Failed to resolve incident.")
+      console.error("Erreur lors de la résolution de l'incident:", error.message)
+      alert("Échec de la résolution de l'incident: " + error.message)
     }
   }
 
@@ -250,18 +248,18 @@ function IncidentDetails() {
         variables: {
           input: {
             incidentId: id,
-            status: newStatus,
-            priority: newPriority,
+            status: getStatusKey(newStatus),
+            priority: getPriorityKey(newPriority),
           },
         },
       })
 
       setIsUpdateStatusModalOpen(false)
       refetch()
-      alert("Status and priority updated successfully!")
+      alert("Statut et priorité mis à jour avec succès !")
     } catch (error) {
-      console.error("Error updating status:", error.message)
-      alert("Failed to update status.")
+      console.error("Erreur lors de la mise à jour du statut:", error.message)
+      alert("Échec de la mise à jour du statut: " + error.message)
     }
   }
 
@@ -269,38 +267,66 @@ function IncidentDetails() {
     navigate("/incidents")
   }
 
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error.message}</p>
-  if (!data || !data.getIncidentById) return <p>Incident not found</p>
+  if (loading)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5">Chargement...</MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
+
+  if (error)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5" color="error">
+            Erreur : {error.message}
+          </MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
+
+  if (!data || !data.getIncidentById)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5">Incident non trouvé</MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
 
   const incident = data.getIncidentById
 
-  // Function to get status color
+  // Fonction pour obtenir la couleur du statut
   const getStatusColor = (status) => {
     switch (status) {
-      case "OPEN":
+      case IncidentStatus.OPEN:
         return "error"
-      case "IN_PROGRESS":
+      case IncidentStatus.IN_PROGRESS:
         return "warning"
-      case "RESOLVED":
+      case IncidentStatus.RESOLVED:
         return "success"
-      case "CANCELLED":
+      case IncidentStatus.CANCELLED:
         return "default"
       default:
         return "default"
     }
   }
 
-  // Function to get status icon
+  // Fonction pour obtenir l'icône du statut
   const getStatusIcon = (status) => {
     switch (status) {
-      case "OPEN":
+      case IncidentStatus.OPEN:
         return <ErrorIcon />
-      case "IN_PROGRESS":
+      case IncidentStatus.IN_PROGRESS:
         return <HourglassEmptyIcon />
-      case "RESOLVED":
+      case IncidentStatus.RESOLVED:
         return <DoneAllIcon />
-      case "CANCELLED":
+      case IncidentStatus.CANCELLED:
         return <CheckCircleIcon />
       default:
         return null
@@ -315,14 +341,14 @@ function IncidentDetails() {
           <Grid item xs={12}>
             <MDBox mb={3} display="flex" alignItems="center">
               <MDButton color="info" variant="text" onClick={handleBack}>
-                <ArrowBackIcon /> Back to list
+                <ArrowBackIcon /> Retour à la liste
               </MDButton>
             </MDBox>
 
             <Card>
               <MDBox p={3}>
                 <Grid container spacing={3}>
-                  {/* Header with main information */}
+                  {/* En-tête avec les informations principales */}
                   <Grid item xs={12}>
                     <MDBox display="flex" justifyContent="space-between" alignItems="center">
                       <MDBox>
@@ -330,72 +356,77 @@ function IncidentDetails() {
                           Incident #{incident._id}
                         </MDTypography>
                         <MDTypography variant="body2" color="text">
-                          Created on {format(new Date(incident.createdAt), "MM/dd/yyyy 'at' HH:mm")}
+                          Créé le {format(new Date(incident.createdAt), "dd/MM/yyyy 'à' HH:mm", { locale: fr })}
                         </MDTypography>
                       </MDBox>
                       <MDBox display="flex" gap={1}>
                         <Chip
                           icon={getStatusIcon(incident.status)}
-                          label={IncidentStatus[incident.status]}
+                          label={incident.status}
                           color={getStatusColor(incident.status)}
                           sx={{ fontWeight: "bold" }}
                         />
                         <Chip
-                          label={IncidentPriority[incident.priority]}
-                          color={incident.priority === "CRITICAL" ? "error" : "default"}
-                          variant={incident.priority === "CRITICAL" ? "filled" : "outlined"}
+                          label={incident.priority}
+                          color={incident.priority === IncidentPriority.CRITICAL ? "error" : "default"}
+                          variant={incident.priority === IncidentPriority.CRITICAL ? "filled" : "outlined"}
                         />
                       </MDBox>
                     </MDBox>
                   </Grid>
 
-                  {/* Order information */}
+                  {/* Informations de la commande */}
                   <Grid item xs={12} md={6}>
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <MDBox display="flex" alignItems="center" mb={2}>
                         <LocalShippingIcon color="info" sx={{ mr: 1 }} />
-                        <MDTypography variant="h6">Order Information</MDTypography>
+                        <MDTypography variant="h6">Informations de la Commande</MDTypography>
                       </MDBox>
                       <MDBox pl={4}>
                         <MDTypography variant="body2">
-                          <strong>Order Number:</strong> {incident.orderId?.orderNumber}
+                          <strong>ID de Commande :</strong> {incident.orderId}
                         </MDTypography>
                         <MDTypography variant="body2">
-                          <strong>Client:</strong> {clientInfo.name}
+                          <strong>Client :</strong> {clientInfo.name}
                         </MDTypography>
                         <MDTypography variant="body2">
-                          <strong>Address:</strong> {clientInfo.address}
+                          <strong>Téléphone :</strong> {clientInfo.phone}
                         </MDTypography>
                         <MDTypography variant="body2">
-                          <strong>Order Status:</strong> {incident.orderId?.status}
+                          <strong>Adresse :</strong> {clientInfo.address}
+                        </MDTypography>
+                        <MDTypography variant="body2">
+                          <strong>Montant :</strong> {orderInfo.amount} €
+                        </MDTypography>
+                        <MDTypography variant="body2">
+                          <strong>Statut de la Commande :</strong> {orderInfo.status}
                         </MDTypography>
                       </MDBox>
                     </Paper>
                   </Grid>
 
-                  {/* Incident information */}
+                  {/* Informations de l'incident */}
                   <Grid item xs={12} md={6}>
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <MDBox display="flex" alignItems="center" mb={2}>
                         <ErrorIcon color="warning" sx={{ mr: 1 }} />
-                        <MDTypography variant="h6">Incident Details</MDTypography>
+                        <MDTypography variant="h6">Détails de l&apos;Incident</MDTypography>
                       </MDBox>
                       <MDBox pl={4}>
                         <MDTypography variant="body2">
-                          <strong>Type:</strong>{" "}
-                          {incident.incidentType ? IncidentType[incident.incidentType] : incident.customDescription}
+                          <strong>Type :</strong> {incident.incidentType || incident.customDescription}
                         </MDTypography>
                         <MDTypography variant="body2">
-                          <strong>Reported by:</strong> {incident.reportedBy}
+                          <strong>Signalé par :</strong> {incident.reportedBy}
                         </MDTypography>
                         {incident.resolvedBy && (
                           <>
                             <MDTypography variant="body2">
-                              <strong>Resolved by:</strong> {incident.resolvedBy}
+                              <strong>Résolu par :</strong> {incident.resolvedBy}
                             </MDTypography>
                             <MDTypography variant="body2">
-                              <strong>Resolution date:</strong>{" "}
-                              {format(new Date(incident.resolvedAt), "MM/dd/yyyy 'at' HH:mm")}
+                              <strong>Date de résolution :</strong>{" "}
+                              {format(new Date(incident.resolvedAt), "dd/MM/yyyy 'à' HH:mm", { locale: fr })}
                             </MDTypography>
                           </>
                         )}
@@ -403,7 +434,7 @@ function IncidentDetails() {
                     </Paper>
                   </Grid>
 
-                  {/* Incident description */}
+                  {/* Description de l'incident */}
                   <Grid item xs={12}>
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <MDTypography variant="h6" mb={2}>
@@ -415,12 +446,12 @@ function IncidentDetails() {
                     </Paper>
                   </Grid>
 
-                  {/* Resolution notes (if resolved) */}
-                  {incident.status === "RESOLVED" && incident.resolutionNotes && (
+                  {/* Notes de résolution (si résolu) */}
+                  {incident.status === IncidentStatus.RESOLVED && incident.resolutionNotes && (
                     <Grid item xs={12}>
                       <Paper variant="outlined" sx={{ p: 2, bgcolor: "rgba(76, 175, 80, 0.05)" }}>
                         <MDTypography variant="h6" mb={2} color="success">
-                          Resolution Notes
+                          Notes de Résolution
                         </MDTypography>
                         <MDTypography variant="body2" color="text">
                           {incident.resolutionNotes}
@@ -429,7 +460,7 @@ function IncidentDetails() {
                     </Grid>
                   )}
 
-                  {/* Images (if available) */}
+                  {/* Images (si disponibles) */}
                   {incident.images && incident.images.length > 0 && (
                     <Grid item xs={12}>
                       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -440,7 +471,7 @@ function IncidentDetails() {
                           {incident.images.map((image, index) => (
                             <Grid item xs={6} md={3} key={index}>
                               <img
-                                src={image || "/placeholder.svg"}
+                                src={image || "/placeholder.svg?height=150&width=200"}
                                 alt={`Image ${index + 1}`}
                                 style={{
                                   width: "100%",
@@ -456,22 +487,22 @@ function IncidentDetails() {
                     </Grid>
                   )}
 
-                  {/* Comments */}
+                  {/* Commentaires */}
                   <Grid item xs={12}>
                     <Paper variant="outlined" sx={{ p: 2 }}>
                       <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                         <MDBox display="flex" alignItems="center">
                           <CommentIcon color="info" sx={{ mr: 1 }} />
-                          <MDTypography variant="h6">Comments ({incident.comments?.length || 0})</MDTypography>
+                          <MDTypography variant="h6">Commentaires ({incident.comments?.length || 0})</MDTypography>
                         </MDBox>
-                        {incident.status !== "RESOLVED" && (
+                        {incident.status !== IncidentStatus.RESOLVED && (
                           <MDButton
                             variant="outlined"
                             color="info"
                             size="small"
                             onClick={() => setIsAddCommentModalOpen(true)}
                           >
-                            Add Comment
+                            Ajouter un Commentaire
                           </MDButton>
                         )}
                       </MDBox>
@@ -502,7 +533,7 @@ function IncidentDetails() {
                                 secondary={
                                   <>
                                     <MDTypography variant="caption" color="text">
-                                      {format(new Date(comment.createdAt), "MM/dd/yyyy 'at' HH:mm")}
+                                      {format(new Date(comment.createdAt), "dd/MM/yyyy 'à' HH:mm", { locale: fr })}
                                     </MDTypography>
                                     <MDTypography variant="body2" color="text" component="div" mt={1}>
                                       {comment.comment}
@@ -516,7 +547,7 @@ function IncidentDetails() {
                       ) : (
                         <MDBox textAlign="center" py={2}>
                           <MDTypography variant="body2" color="text">
-                            No comments yet.
+                            Aucun commentaire pour le moment.
                           </MDTypography>
                         </MDBox>
                       )}
@@ -526,13 +557,13 @@ function IncidentDetails() {
                   {/* Actions */}
                   <Grid item xs={12}>
                     <MDBox display="flex" justifyContent="flex-end" gap={2}>
-                      {incident.status !== "RESOLVED" && (
+                      {incident.status !== IncidentStatus.RESOLVED && (
                         <>
                           <MDButton variant="outlined" color="info" onClick={() => setIsUpdateStatusModalOpen(true)}>
-                            Update Status
+                            Mettre à Jour le Statut
                           </MDButton>
                           <MDButton variant="contained" color="success" onClick={() => setIsResolveModalOpen(true)}>
-                            Mark as Resolved
+                            Marquer comme Résolu
                           </MDButton>
                         </>
                       )}
@@ -545,14 +576,14 @@ function IncidentDetails() {
         </Grid>
       </MDBox>
 
-      {/* Add Comment Modal */}
+      {/* Modale d'ajout de commentaire */}
       <Dialog open={isAddCommentModalOpen} onClose={() => setIsAddCommentModalOpen(false)}>
-        <DialogTitle>Add Comment</DialogTitle>
+        <DialogTitle>Ajouter un Commentaire</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Comment"
+            label="Commentaire"
             fullWidth
             multiline
             rows={4}
@@ -561,21 +592,21 @@ function IncidentDetails() {
           />
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => setIsAddCommentModalOpen(false)}>Cancel</MDButton>
+          <MDButton onClick={() => setIsAddCommentModalOpen(false)}>Annuler</MDButton>
           <MDButton onClick={handleAddComment} color="info">
-            Add
+            Ajouter
           </MDButton>
         </DialogActions>
       </Dialog>
 
-      {/* Resolve Incident Modal */}
+      {/* Modale de résolution d'incident */}
       <Dialog open={isResolveModalOpen} onClose={() => setIsResolveModalOpen(false)}>
-        <DialogTitle>Resolve Incident</DialogTitle>
+        <DialogTitle>Résoudre l&apos;Incident</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Resolution Notes"
+            label="Notes de Résolution"
             fullWidth
             multiline
             rows={4}
@@ -584,50 +615,50 @@ function IncidentDetails() {
           />
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => setIsResolveModalOpen(false)}>Cancel</MDButton>
+          <MDButton onClick={() => setIsResolveModalOpen(false)}>Annuler</MDButton>
           <MDButton onClick={handleResolveIncident} color="success">
-            Resolve
+            Résoudre
           </MDButton>
         </DialogActions>
       </Dialog>
 
-      {/* Update Status Modal */}
+      {/* Modale de mise à jour du statut */}
       <Dialog open={isUpdateStatusModalOpen} onClose={() => setIsUpdateStatusModalOpen(false)}>
-        <DialogTitle>Update Status and Priority</DialogTitle>
+        <DialogTitle>Mettre à Jour le Statut et la Priorité</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="normal">
-            <InputLabel id="status-label">Status</InputLabel>
+            <InputLabel id="status-label">Statut</InputLabel>
             <Select
               labelId="status-label"
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value)}
-              label="Status"
+              label="Statut"
             >
-              <MenuItem value="OPEN">{IncidentStatus.OPEN}</MenuItem>
-              <MenuItem value="IN_PROGRESS">{IncidentStatus.IN_PROGRESS}</MenuItem>
-              <MenuItem value="CANCELLED">{IncidentStatus.CANCELLED}</MenuItem>
+              <MenuItem value={IncidentStatus.OPEN}>Ouvert</MenuItem>
+              <MenuItem value={IncidentStatus.IN_PROGRESS}>En Cours</MenuItem>
+              <MenuItem value={IncidentStatus.CANCELLED}>Annulé</MenuItem>
             </Select>
           </FormControl>
 
           <FormControl fullWidth margin="normal">
-            <InputLabel id="priority-label">Priority</InputLabel>
+            <InputLabel id="priority-label">Priorité</InputLabel>
             <Select
               labelId="priority-label"
               value={newPriority}
               onChange={(e) => setNewPriority(e.target.value)}
-              label="Priority"
+              label="Priorité"
             >
-              <MenuItem value="LOW">{IncidentPriority.LOW}</MenuItem>
-              <MenuItem value="MEDIUM">{IncidentPriority.MEDIUM}</MenuItem>
-              <MenuItem value="HIGH">{IncidentPriority.HIGH}</MenuItem>
-              <MenuItem value="CRITICAL">{IncidentPriority.CRITICAL}</MenuItem>
+              <MenuItem value={IncidentPriority.LOW}>Faible</MenuItem>
+              <MenuItem value={IncidentPriority.MEDIUM}>Moyenne</MenuItem>
+              <MenuItem value={IncidentPriority.HIGH}>Élevée</MenuItem>
+              <MenuItem value={IncidentPriority.CRITICAL}>Critique</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => setIsUpdateStatusModalOpen(false)}>Cancel</MDButton>
+          <MDButton onClick={() => setIsUpdateStatusModalOpen(false)}>Annuler</MDButton>
           <MDButton onClick={handleUpdateStatus} color="warning">
-            Update
+            Mettre à Jour
           </MDButton>
         </DialogActions>
       </Dialog>

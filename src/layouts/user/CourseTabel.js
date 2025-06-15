@@ -89,10 +89,10 @@ function CourseTable() {
               query: GET_USER_BY_ID,
               variables: { id: course.driverId },
             })
-            names[course.driverId] = data?.getUserById?.name || "Unknown Driver"
+            names[course.driverId] = data?.getUserById?.name || "Chauffeur Inconnu"
           } catch (error) {
-            console.error("Error fetching driver name:", error)
-            names[course.driverId] = "Unknown Driver"
+            console.error("Erreur lors de la récupération du nom du chauffeur:", error)
+            names[course.driverId] = "Chauffeur Inconnu"
           }
         }
       }
@@ -121,7 +121,7 @@ function CourseTable() {
       const details = await Promise.all(orderDetailsPromises)
       setOrderDetails(details.filter((order) => order)) // Filter out any null results
     } catch (error) {
-      console.error("Error fetching order details:", error)
+      console.error("Erreur lors de la récupération des détails des commandes:", error)
     } finally {
       setLoadingOrders(false)
     }
@@ -134,17 +134,16 @@ function CourseTable() {
       .slice() // create a shallow copy to avoid mutating the original array
       .reverse()
       .map((course, index) => {
-        const driverName = driverNames[course.driverId] || "Loading..."
+        const driverName = driverNames[course.driverId] || "Chargement..."
 
         return {
           id: index + 1,
           driver: (
             <MDBox>
               <MDTypography variant="subtitle2">{driverName}</MDTypography>
-              
             </MDBox>
           ),
-          createdAt: new Date(course.createdAt).toLocaleString() || "N/A",
+          createdAt: new Date(course.createdAt).toLocaleString("fr-FR") || "N/A",
           ordersCount: course.orderIds?.length || 0,
           action: (
             <MDBox display="flex" gap={1}>
@@ -158,7 +157,7 @@ function CourseTable() {
                   fetchOrderDetails(course.orderIds)
                 }}
               >
-                View Orders
+                Voir les Commandes
               </MDButton>
             </MDBox>
           ),
@@ -169,9 +168,9 @@ function CourseTable() {
   // Update columns to remove updatedAt
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Driver", accessor: "driver", width: "30%", align: "left" },
-    { Header: "Created At", accessor: "createdAt", align: "center" },
-    { Header: "Orders Count", accessor: "ordersCount", align: "center" },
+    { Header: "Chauffeur", accessor: "driver", width: "30%", align: "left" },
+    { Header: "Date de Création", accessor: "createdAt", align: "center" },
+    { Header: "Nombre de Commandes", accessor: "ordersCount", align: "center" },
     { Header: "Actions", accessor: "action", align: "center" },
   ]
 
@@ -181,17 +180,71 @@ function CourseTable() {
     setOrderDetails([])
   }
 
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error.message}</p>
+  // Fonction pour traduire les statuts
+  const translateStatus = (status) => {
+    const statusTranslations = {
+      COMPLETED: "TERMINÉ",
+      PENDING: "EN_ATTENTE",
+      CANCELLED: "ANNULÉ",
+      IN_PROGRESS: "EN_COURS",
+      DELIVERED: "LIVRÉ",
+      FAILED: "ÉCHEC",
+    }
+    return statusTranslations[status] || status
+  }
+
+  // Fonction pour obtenir la couleur du statut
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "COMPLETED":
+      case "DELIVERED":
+        return "success"
+      case "PENDING":
+      case "IN_PROGRESS":
+        return "warning"
+      case "CANCELLED":
+      case "FAILED":
+        return "error"
+      default:
+        return "info"
+    }
+  }
+
+  if (loading)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5">Chargement des tournées...</MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
+
+  if (error)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5" color="error">
+            Erreur : {error.message}
+          </MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
 
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
         <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <MDTypography variant="h6" fontWeight="medium">
-            Courses Table
-          </MDTypography>
+          <MDBox>
+            <MDTypography variant="h4" fontWeight="medium">
+              Gestion des Tournées
+            </MDTypography>
+            <MDTypography variant="body2" color="text">
+              Suivi des tournées de livraison et des commandes associées
+            </MDTypography>
+          </MDBox>
         </MDBox>
 
         <Grid container spacing={6}>
@@ -204,8 +257,8 @@ function CourseTable() {
                     rows,
                   }}
                   isSorted={false}
-                  entriesPerPage={false}
-                  showTotalEntries={false}
+                  entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
+                  showTotalEntries={true}
                   noEndBorder
                 />
               </MDBox>
@@ -218,19 +271,19 @@ function CourseTable() {
       <Dialog open={isModalOpen} onClose={handleCloseModal} maxWidth="md" fullWidth>
         <DialogTitle>
           <MDTypography variant="h6">
-            Orders for Driver: {driverData?.getUserById?.name || selectedCourse?.driverId}
+            Commandes pour le Chauffeur : {driverData?.getUserById?.name || selectedCourse?.driverId}
           </MDTypography>
         </DialogTitle>
         <DialogContent>
           {selectedCourse && (
             <MDBox>
               <MDTypography variant="subtitle2" mb={2}>
-                Total Orders: {selectedCourse.orderIds?.length || 0}
+                Total des Commandes : {selectedCourse.orderIds?.length || 0}
               </MDTypography>
 
               {loadingOrders ? (
                 <MDBox display="flex" justifyContent="center" p={3}>
-                  <MDTypography>Loading order details...</MDTypography>
+                  <MDTypography>Chargement des détails des commandes...</MDTypography>
                 </MDBox>
               ) : (
                 <Grid container spacing={2}>
@@ -240,37 +293,24 @@ function CourseTable() {
                         <Card>
                           <MDBox p={2}>
                             <Grid container spacing={2}>
-                              
-                              
                               <Grid item xs={12} md={6}>
                                 <MDTypography variant="body2" fontWeight="bold">
-                                  Amount:
+                                  Montant :
                                 </MDTypography>
-                                <MDTypography variant="body2">{order.amount}</MDTypography>
+                                <MDTypography variant="body2">{order.amount} TND</MDTypography>
                               </Grid>
                               <Grid item xs={12} md={6}>
                                 <MDTypography variant="body2" fontWeight="bold">
-                                  Status:
+                                  Statut :
                                 </MDTypography>
-                                <MDTypography
-                                  variant="body2"
-                                  color={
-                                    order.status === "COMPLETED"
-                                      ? "success"
-                                      : order.status === "PENDING"
-                                        ? "warning"
-                                        : order.status === "CANCELLED"
-                                          ? "error"
-                                          : "info"
-                                  }
-                                >
-                                  {order.status}
+                                <MDTypography variant="body2" color={getStatusColor(order.status)}>
+                                  {translateStatus(order.status)}
                                 </MDTypography>
                               </Grid>
                               {order.description && (
                                 <Grid item xs={12}>
                                   <MDTypography variant="body2" fontWeight="bold">
-                                    Description:
+                                    Description :
                                   </MDTypography>
                                   <MDTypography variant="body2">{order.description}</MDTypography>
                                 </Grid>
@@ -283,7 +323,7 @@ function CourseTable() {
                   ) : (
                     <Grid item xs={12}>
                       <MDBox p={3} textAlign="center">
-                        <MDTypography>No order details available</MDTypography>
+                        <MDTypography>Aucun détail de commande disponible</MDTypography>
                       </MDBox>
                     </Grid>
                   )}
@@ -294,7 +334,7 @@ function CourseTable() {
         </DialogContent>
         <DialogActions>
           <MDButton onClick={handleCloseModal} color="secondary">
-            Close
+            Fermer
           </MDButton>
         </DialogActions>
       </Dialog>

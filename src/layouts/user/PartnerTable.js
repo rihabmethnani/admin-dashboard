@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useQuery, gql, useMutation } from "@apollo/client"
 import Grid from "@mui/material/Grid"
 import Card from "@mui/material/Card"
@@ -15,11 +15,12 @@ import { clientMicroservice1 } from "apolloClients/microservice1"
 import { useAuth } from "context/AuthContext"
 import { VALIDATE_PARTNER } from "graphql/mutations/userMutations"
 import Author from "./Author"
-import { Tooltip, IconButton } from "@mui/material"
+import { Tooltip, IconButton, TextField, InputAdornment, Box } from "@mui/material"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import CancelIcon from "@mui/icons-material/Cancel"
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser"
 import BlockIcon from "@mui/icons-material/Block"
+import SearchIcon from "@mui/icons-material/Search"
 
 // GraphQL Queries & Mutations
 const GET_PARTNERS = gql`
@@ -33,6 +34,7 @@ const GET_PARTNERS = gql`
       image
       companyName
       isValid
+      createdAt
     }
   }
 `
@@ -60,6 +62,8 @@ function PartnerTable() {
   const [controller] = useMaterialUIController()
   const { searchTerm } = controller
   const { currentUser } = useAuth()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortOrder, setSortOrder] = useState("newest")
 
   const [softRemoveUserMutation] = useMutation(SOFT_REMOVE_USER, { client: clientMicroservice1 })
   const [validatePartnerMutation] = useMutation(VALIDATE_PARTNER, { client: clientMicroservice1 })
@@ -71,11 +75,11 @@ function PartnerTable() {
   const handleValidate = async (partnerId) => {
     try {
       await validatePartnerMutation({ variables: { partnerId } })
-      alert("Partner validated successfully!")
+      alert("Partenaire validé avec succès !")
       refetch()
     } catch (error) {
       console.error(error)
-      alert("Failed to validate partner.")
+      alert("Échec de la validation du partenaire.")
     }
   }
 
@@ -83,127 +87,137 @@ function PartnerTable() {
   const handleInvalidate = async (partnerId) => {
     try {
       await invalidatePartnerMutation({ variables: { partnerId } })
-      alert("Partner invalidated successfully!")
+      alert("Partenaire invalidé avec succès !")
       refetch()
     } catch (error) {
       console.error(error)
-      alert("Failed to invalidate partner.")
+      alert("Échec de l'invalidation du partenaire.")
     }
   }
 
   const handleDelete = async (partnerId) => {
-    const confirmed = window.confirm("Are you sure you want to delete this partner?")
+    const confirmed = window.confirm("Êtes-vous sûr de vouloir supprimer ce partenaire ?")
     if (!confirmed) return
 
     try {
       await softRemoveUserMutation({ variables: { id: partnerId } })
-      alert("Partner deleted successfully!")
+      alert("Partenaire supprimé avec succès !")
       refetch()
     } catch (error) {
       console.error(error)
-      alert("Failed to delete partner.")
+      alert("Échec de la suppression du partenaire.")
     }
   }
 
   const rows = useMemo(() => {
-    return partners
-      .filter(
-        (partner) =>
-          partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          partner.email.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-      .slice() // create a shallow copy to avoid mutating the original array
-      .reverse()
-      .map((partner, index) => ({
-        id: index + 1,
-        author: <Author image={partner.image || null} name={partner.name} email={partner.email} />,
-        phone: partner.phone || "N/A",
-        address: partner.address || "N/A",
-        companyName: partner.companyName || "N/A",
-        isValid: partner.isValid ? (
-          <MDBox display="flex" alignItems="center" justifyContent="center">
-            <VerifiedUserIcon color="success" fontSize="small" sx={{ mr: 0.5 }} />
-            <MDTypography variant="caption" color="success" fontWeight="medium">
-              Validé
-            </MDTypography>
-          </MDBox>
-        ) : (
-          <MDBox display="flex" alignItems="center" justifyContent="center">
-            <BlockIcon color="error" fontSize="small" sx={{ mr: 0.5 }} />
-            <MDTypography variant="caption" color="error" fontWeight="medium">
-              Non Validé
-            </MDTypography>
-          </MDBox>
-        ),
-        validation:
-          currentUser?.role === "SUPER_ADMIN" ? (
-            // Read-only view for SUPER_ADMIN
-            <MDTypography variant="caption" color={partner.isValid ? "success" : "error"} fontWeight="medium">
-              {partner.isValid ? "Validé" : "Non Validé"}
-            </MDTypography>
-          ) : (
-            // Interactive buttons for other roles
-            <MDBox display="flex" justifyContent="center">
-              {/* Validate button/icon */}
-              <Tooltip title={partner.isValid ? "Déjà validé" : "Valider ce partenaire"}>
-                <span>
-                  <IconButton
-                    color="success"
-                    disabled={partner.isValid}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handleValidate(partner._id)
-                    }}
-                    size="small"
-                  >
-                    <CheckCircleIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
+    // Filter partners based on search query
+    const filteredPartners = partners.filter(
+      (partner) =>
+        partner.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        partner.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        partner.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        partner.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        partner.companyName?.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
 
-              {/* Invalidate button/icon */}
-              <Tooltip title={!partner.isValid ? "Déjà invalidé" : "Invalider ce partenaire"}>
-                <span>
-                  <IconButton
-                    color="error"
-                    disabled={!partner.isValid}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      handleInvalidate(partner._id)
-                    }}
-                    size="small"
-                  >
-                    <CancelIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </MDBox>
-          ),
-        action: currentUser?.role === "ADMIN" && (
+    // Sort partners based on creation date
+    const sortedPartners = [...filteredPartners].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0)
+      const dateB = new Date(b.createdAt || 0)
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB
+    })
+
+    return sortedPartners.map((partner, index) => ({
+      id: index + 1,
+      author: <Author image={partner.image || null} name={partner.name} email={partner.email} />,
+      phone: partner.phone || "N/A",
+      address: partner.address || "N/A",
+      companyName: partner.companyName || "N/A",
+      isValid: partner.isValid ? (
+        <MDBox display="flex" alignItems="center" justifyContent="center">
+          <VerifiedUserIcon color="success" fontSize="small" sx={{ mr: 0.5 }} />
+          <MDTypography variant="caption" color="success" fontWeight="medium">
+            Validé
+          </MDTypography>
+        </MDBox>
+      ) : (
+        <MDBox display="flex" alignItems="center" justifyContent="center">
+          <BlockIcon color="error" fontSize="small" sx={{ mr: 0.5 }} />
+          <MDTypography variant="caption" color="error" fontWeight="medium">
+            Non Validé
+          </MDTypography>
+        </MDBox>
+      ),
+      validation:
+        currentUser?.role === "SUPER_ADMIN" ? (
+          // Read-only view for SUPER_ADMIN
+          <MDTypography variant="caption" color={partner.isValid ? "success" : "error"} fontWeight="medium">
+            {partner.isValid ? "Validé" : "Non Validé"}
+          </MDTypography>
+        ) : (
+          // Interactive buttons for other roles
           <MDBox display="flex" justifyContent="center">
-            <Tooltip title="Supprimer ce partenaire">
-              <IconButton
-                color="error"
-                onClick={(e) => {
-                  e.preventDefault()
-                  handleDelete(partner._id)
-                }}
-                size="small"
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
+            {/* Validate button/icon */}
+            <Tooltip title={partner.isValid ? "Déjà validé" : "Valider ce partenaire"}>
+              <span>
+                <IconButton
+                  color="success"
+                  disabled={partner.isValid}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleValidate(partner._id)
+                  }}
+                  size="small"
+                >
+                  <CheckCircleIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            {/* Invalidate button/icon */}
+            <Tooltip title={!partner.isValid ? "Déjà invalidé" : "Invalider ce partenaire"}>
+              <span>
+                <IconButton
+                  color="error"
+                  disabled={!partner.isValid}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleInvalidate(partner._id)
+                  }}
+                  size="small"
+                >
+                  <CancelIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           </MDBox>
         ),
-      }))
-  }, [partners, searchTerm, currentUser])
+      action: currentUser?.role === "ADMIN" && (
+        <MDBox display="flex" justifyContent="center">
+          <Tooltip title="Supprimer ce partenaire">
+            <IconButton
+              color="error"
+              onClick={(e) => {
+                e.preventDefault()
+                handleDelete(partner._id)
+              }}
+              size="small"
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </MDBox>
+      ),
+      createdAt: partner.createdAt,
+    }))
+  }, [partners, searchQuery, sortOrder, currentUser])
 
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Author", accessor: "author", width: "30%", align: "left" },
-    { Header: "Phone", accessor: "phone", align: "center" },
-    { Header: "Address", accessor: "address", align: "left" },
-    { Header: "Company Name", accessor: "companyName", align: "left" },
+    { Header: "Utilisateur", accessor: "author", width: "30%", align: "left" },
+    { Header: "Téléphone", accessor: "phone", align: "center" },
+    { Header: "Adresse", accessor: "address", align: "left" },
+    { Header: "Entreprise", accessor: "companyName", align: "left" },
     { Header: "Statut", accessor: "isValid", align: "center" },
     { Header: "Validation", accessor: "validation", align: "center" },
     ...(currentUser?.role === "ADMIN" ? [{ Header: "Action", accessor: "action", align: "center" }] : []),
@@ -237,7 +251,46 @@ function PartnerTable() {
       <MDBox pt={6} pb={3}>
         <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <MDBox>
-           
+            <MDTypography variant="h4" fontWeight="medium">
+              Gestion des Partenaires
+            </MDTypography>
+            <MDTypography variant="body2" color="text">
+              Liste des partenaires commerciaux et leur statut de validation
+            </MDTypography>
+          </MDBox>
+
+          <MDBox display="flex" alignItems="center" gap={2}>
+            <TextField
+              label="Rechercher"
+              variant="outlined"
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              placeholder="Nom, email, entreprise..."
+            />
+
+            <Box sx={{ minWidth: 120 }}>
+              <TextField
+                select
+                label="Trier par"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                size="small"
+                SelectProps={{
+                  native: true,
+                }}
+              >
+                <option value="newest">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+              </TextField>
+            </Box>
           </MDBox>
         </MDBox>
 
@@ -253,7 +306,6 @@ function PartnerTable() {
                   isSorted={false}
                   entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
                   showTotalEntries={true}
-                  
                   noEndBorder
                 />
               </MDBox>

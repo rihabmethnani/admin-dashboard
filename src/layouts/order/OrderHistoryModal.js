@@ -29,7 +29,6 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
     if (!historyData || historyData.length === 0) return
 
     const fetchUserNames = async () => {
-      // Collect all unique user IDs from history
       const userIds = new Set()
       historyData.forEach((item) => {
         if (item.adminId) userIds.add(item.adminId)
@@ -38,7 +37,6 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
         if (item.driverId) userIds.add(item.driverId)
       })
 
-      // Fetch user names for IDs not in cache
       const newUserIds = Array.from(userIds).filter((id) => !usersCache[id])
 
       if (newUserIds.length > 0) {
@@ -73,7 +71,6 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
     if (!historyData) return
 
     const processed = historyData.map((item) => {
-      // Determine responsible user
       let responsibleName = "System"
       let responsibleRole = ""
 
@@ -91,7 +88,6 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
         responsibleRole = "Driver"
       }
 
-      // Format date and time
       const date = new Date(item.timestamp)
       const formattedDate = date.toLocaleDateString()
       const formattedTime = date.toLocaleTimeString()
@@ -115,18 +111,17 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
       width: "100px",
     },
     {
-      Header: "Heure",
+      Header: "Time",
       accessor: "formattedTime",
       width: "100px",
     },
     {
-      Header: "Événement",
+      Header: "Event",
       accessor: "event",
     },
     {
-      Header: "Ancien statut",
+      Header: "Previous Status",
       accessor: "etatPrecedent",
-      // eslint-disable-next-line react/prop-types
       Cell: ({ value }) =>
         value ? (
           <MDTypography variant="caption" fontWeight="medium">
@@ -139,9 +134,8 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
         ),
     },
     {
-      Header: "Responsable",
+      Header: "Responsible",
       accessor: "responsibleName",
-      // eslint-disable-next-line react/prop-types
       Cell: ({ row }) => (
         <MDTypography variant="caption" fontWeight="medium">
           {row.original.responsibleName}
@@ -159,7 +153,7 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <MDTypography variant="h6" fontWeight="medium">
-          Historique de la commande #{orderNumber}
+          Order History #{orderNumber}
         </MDTypography>
       </DialogTitle>
       <DialogContent>
@@ -177,7 +171,7 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
           ) : (
             <MDBox textAlign="center" py={3}>
               <MDTypography variant="body2" color="text">
-                Aucun historique disponible pour cette commande
+                No history available for this order
               </MDTypography>
             </MDBox>
           )}
@@ -185,14 +179,13 @@ function OrderHistoryModal({ open, onClose, orderId, orderNumber, historyData })
       </DialogContent>
       <DialogActions>
         <MDButton onClick={onClose} color="secondary">
-          Fermer
+          Close
         </MDButton>
       </DialogActions>
     </Dialog>
   )
 }
 
-// Add PropTypes validation
 OrderHistoryModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
@@ -212,7 +205,6 @@ OrderHistoryModal.propTypes = {
   ),
 }
 
-// Add default props
 OrderHistoryModal.defaultProps = {
   orderId: "",
   orderNumber: "",

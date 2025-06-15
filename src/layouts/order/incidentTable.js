@@ -29,7 +29,6 @@ import {
 import MDButton from "components/MDButton"
 import PropTypes from "prop-types"
 import EditIcon from "@mui/icons-material/Edit"
-import VisibilityIcon from "@mui/icons-material/Visibility"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import ErrorIcon from "@mui/icons-material/Error"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
@@ -38,58 +37,47 @@ import { useMaterialUIController } from "context"
 import { clientMicroservice1 } from "apolloClients/microservice1"
 import LocalShippingIcon from "@mui/icons-material/LocalShipping"
 import { format } from "date-fns"
+import { fr } from "date-fns/locale"
 import { clientMicroservice2 } from "apolloClients/microservice2"
 import { useNavigate } from "react-router-dom"
+import { getStatusKey,getPriorityKey,  getStatusValue, getPriorityValue, getIncidentTypeValue } from "util/enum-utils"
 
-// Enums for incidents
-const IncidentStatus = {
-  OPEN: "Open",
-  IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-  CANCELLED: "Cancelled",
-}
-
-const IncidentPriority = {
-  LOW: "Low",
-  MEDIUM: "Medium",
-  HIGH: "High",
-  CRITICAL: "Critical",
-}
-
-const IncidentType = {
-  DAMAGED_PACKAGE: "Damaged Package",
-  INCORRECT_ADDRESS: "Incorrect Address",
-  CUSTOMER_NOT_FOUND: "Customer Not Found",
-  LOST_PACKAGE: "Lost Package",
-  WEATHER_DELAY: "Weather Delay",
-  TRAFFIC_DELAY: "Traffic Delay",
-  REFUSED_PACKAGE: "Refused Package",
-  OTHER: "Other",
-}
-
-// GraphQL Queries
+// Requêtes GraphQL
 const GET_ALL_INCIDENTS = gql`
-  query GetAll {
-    getAll {
+  query GetAllIncidents($filters: FilterIncidentInput) {
+    getAllIncidents(filters: $filters) {
       _id
-      orderId {
-        _id
-        clientId
-      }
+      orderId
       description
       status
       incidentType
       priority
+      reportedBy
       createdAt
+      updatedAt
     }
   }
 `
 
-const GET_CLIENT_ADDRESS = gql`
+const GET_ORDER_BY_ID = gql`
+  query GetOrderById($id: String!) {
+    order(id: $id) {
+      _id
+      clientId
+      amount
+      description
+      status
+    }
+  }
+`
+
+const GET_USER_BY_ID = gql`
   query GetUserById($id: String!) {
     getUserById(id: $id) {
       _id
+      name
       address
+      phone
     }
   }
 `
@@ -111,45 +99,146 @@ const UPDATE_INCIDENT = gql`
       _id
       status
       priority
-      resolvedAt
+      updatedAt
     }
   }
 `
 
-function IncidentInfo({ clientId, incidentType, description }) {
-    const [address, setAddress] = useState("Loading address...")
-    const { loading, error, data } = useQuery(GET_CLIENT_ADDRESS, {
-      variables: { id: clientId },
-      client: clientMicroservice1, // Utilisez le bon client
-      skip: !clientId,
-    })
-  
-    useEffect(() => {
-      if (data?.GetUserById) {
-        setAddress(data.GetUserById.address || "No address available")
-      }
-    }, [data])
+function IncidentInfo({ orderId, incidentType, description }) {
+  const [orderInfo, setOrderInfo] = useState({ clientId: null, status: "Chargement..." })
+  const [clientInfo, setClientInfo] = useState({ name: "Chargement...", address: "Chargement..." })
+  const [loadingState, setLoadingState] = useState("loading")
 
-    if (loading) return "Loading address..."
-    if (error) return "Error loading address"
-  
+  const {
+    loading: orderLoading,
+    error: orderError,
+    data: orderData,
+  } = useQuery(GET_ORDER_BY_ID, {
+    variables: { id: orderId },
+    client: clientMicroservice1,
+    skip: !orderId,
+    onError: (err) => {
+      console.error("Erreur lors du chargement de la commande:", err)
+      setLoadingState("order_error")
+    },
+  })
+
+  const {
+    loading: clientLoading,
+    error: clientError,
+    data: clientData,
+  } = useQuery(GET_USER_BY_ID, {
+    variables: { id: orderInfo.clientId },
+    client: clientMicroservice1,
+    skip: !orderInfo.clientId,
+    onError: (err) => {
+      console.error("Erreur lors du chargement du client:", err)
+      setLoadingState("client_error")
+    },
+  })
+
+  useEffect(() => {
+    if (orderData?.order) {
+      setOrderInfo({
+        clientId: orderData.order.clientId,
+        status: orderData.order.status,
+      })
+      setLoadingState("loading_client")
+    }
+  }, [orderData])
+
+  useEffect(() => {
+    if (clientData?.getUserById) {
+      setClientInfo({
+        name: clientData.getUserById.name || "Client inconnu",
+        address: clientData.getUserById.address || "Aucune adresse disponible",
+      })
+      setLoadingState("loaded")
+    }
+  }, [clientData])
+
+  // Gestion des états de chargement et d'erreur
+  if (orderLoading) {
     return (
       <MDBox display="flex" flexDirection="column">
         <MDBox display="flex" alignItems="center">
           <LocalShippingIcon fontSize="small" color="info" sx={{ mr: 0.5 }} />
           <MDTypography variant="button" fontWeight="medium">
-            {address}
+            Chargement de la commande...
           </MDTypography>
         </MDBox>
         <MDTypography variant="caption" fontWeight="bold" color="dark">
-          {IncidentType[incidentType] || description || "N/A"}
+          {getIncidentTypeValue(incidentType) || description || "N/A"}
         </MDTypography>
       </MDBox>
     )
   }
 
+  if (orderError) {
+    return (
+      <MDBox display="flex" flexDirection="column">
+        <MDBox display="flex" alignItems="center">
+          <LocalShippingIcon fontSize="small" color="error" sx={{ mr: 0.5 }} />
+          <MDTypography variant="button" fontWeight="medium" color="error">
+            Commande introuvable
+          </MDTypography>
+        </MDBox>
+        <MDTypography variant="caption" fontWeight="bold" color="dark">
+          {getIncidentTypeValue(incidentType) || description || "N/A"}
+        </MDTypography>
+      </MDBox>
+    )
+  }
+
+  if (clientLoading && orderInfo.clientId) {
+    return (
+      <MDBox display="flex" flexDirection="column">
+        <MDBox display="flex" alignItems="center">
+          <LocalShippingIcon fontSize="small" color="info" sx={{ mr: 0.5 }} />
+          <MDTypography variant="button" fontWeight="medium">
+            Chargement du client...
+          </MDTypography>
+        </MDBox>
+        <MDTypography variant="caption" fontWeight="bold" color="dark">
+          {getIncidentTypeValue(incidentType) || description || "N/A"}
+        </MDTypography>
+      </MDBox>
+    )
+  }
+
+  if (clientError) {
+    return (
+      <MDBox display="flex" flexDirection="column">
+        <MDBox display="flex" alignItems="center">
+          <LocalShippingIcon fontSize="small" color="error" sx={{ mr: 0.5 }} />
+          <MDTypography variant="button" fontWeight="medium" color="error">
+            Client introuvable
+          </MDTypography>
+        </MDBox>
+        <MDTypography variant="caption" fontWeight="bold" color="dark">
+          {getIncidentTypeValue(incidentType) || description || "N/A"}
+        </MDTypography>
+      </MDBox>
+    )
+  }
+
+  return (
+    <MDBox display="flex" flexDirection="column">
+      <MDBox display="flex" alignItems="center">
+        <LocalShippingIcon fontSize="small" color="info" sx={{ mr: 0.5 }} />
+        <MDTypography variant="button" fontWeight="medium">
+          {clientInfo.address}
+        </MDTypography>
+      </MDBox>
+      <MDTypography variant="caption" fontWeight="bold" color="dark">
+        {getIncidentTypeValue(incidentType) || description || "N/A"}
+      </MDTypography>
+    </MDBox>
+  )
+}
+
 IncidentInfo.propTypes = {
-  clientId: PropTypes.string,
+  orderId: PropTypes.string,
   incidentType: PropTypes.string,
   description: PropTypes.string,
 }
@@ -158,20 +247,24 @@ function StatusChip({ status }) {
   let color = "default"
   let icon = null
 
-  switch (status) {
-    case "OPEN":
+  // Convertir le statut du backend en français pour l'affichage
+  const frenchStatus = getStatusValue(status)
+
+  // Comparaison avec les valeurs françaises
+  switch (frenchStatus) {
+    case "Ouvert":
       color = "error"
       icon = <ErrorIcon fontSize="small" />
       break
-    case "IN_PROGRESS":
+    case "En Cours":
       color = "warning"
       icon = <HourglassEmptyIcon fontSize="small" />
       break
-    case "RESOLVED":
+    case "Résolu":
       color = "success"
       icon = <DoneAllIcon fontSize="small" />
       break
-    case "CANCELLED":
+    case "Annulé":
       color = "default"
       icon = <CheckCircleIcon fontSize="small" />
       break
@@ -179,9 +272,7 @@ function StatusChip({ status }) {
       color = "default"
   }
 
-  return (
-    <Chip icon={icon} label={IncidentStatus[status] || status} color={color} size="small" sx={{ fontWeight: "bold" }} />
-  )
+  return <Chip icon={icon} label={frenchStatus} color={color} size="small" sx={{ fontWeight: "bold" }} />
 }
 
 StatusChip.propTypes = {
@@ -191,17 +282,21 @@ StatusChip.propTypes = {
 function PriorityChip({ priority }) {
   let color = "default"
 
-  switch (priority) {
-    case "LOW":
+  // Convertir la priorité du backend en français pour l'affichage
+  const frenchPriority = getPriorityValue(priority)
+
+  // Comparaison avec les valeurs françaises
+  switch (frenchPriority) {
+    case "Faible":
       color = "info"
       break
-    case "MEDIUM":
+    case "Moyenne":
       color = "warning"
       break
-    case "HIGH":
+    case "Élevée":
       color = "error"
       break
-    case "CRITICAL":
+    case "Critique":
       color = "error"
       break
     default:
@@ -210,11 +305,11 @@ function PriorityChip({ priority }) {
 
   return (
     <Chip
-      label={IncidentPriority[priority] || priority}
+      label={frenchPriority}
       color={color}
       size="small"
-      variant={priority === "CRITICAL" ? "filled" : "outlined"}
-      sx={{ fontWeight: priority === "CRITICAL" ? "bold" : "medium" }}
+      variant={frenchPriority === "Critique" ? "filled" : "outlined"}
+      sx={{ fontWeight: frenchPriority === "Critique" ? "bold" : "medium" }}
     />
   )
 }
@@ -223,7 +318,7 @@ PriorityChip.propTypes = {
   priority: PropTypes.string.isRequired,
 }
 
-// Edit Incident Modal
+// Modale d'édition d'incident
 function EditIncidentModal({ open, onClose, incident, onSave }) {
   const [formData, setFormData] = useState({
     status: "",
@@ -233,8 +328,8 @@ function EditIncidentModal({ open, onClose, incident, onSave }) {
   useEffect(() => {
     if (incident) {
       setFormData({
-        status: incident.status || "",
-        priority: incident.priority || "",
+        status: getStatusValue(incident.status) || "",
+        priority: getPriorityValue(incident.priority) || "",
       })
     }
   }, [incident])
@@ -246,42 +341,42 @@ function EditIncidentModal({ open, onClose, incident, onSave }) {
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Edit Incident</DialogTitle>
+      <DialogTitle>Modifier l&apos;Incident</DialogTitle>
       <DialogContent>
         <FormControl fullWidth margin="normal">
-          <InputLabel id="status-label">Status</InputLabel>
+          <InputLabel id="status-label">Statut</InputLabel>
           <Select
             labelId="status-label"
             value={formData.status}
             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            label="Status"
+            label="Statut"
           >
-            <MenuItem value="OPEN">{IncidentStatus.OPEN}</MenuItem>
-            <MenuItem value="IN_PROGRESS">{IncidentStatus.IN_PROGRESS}</MenuItem>
-            <MenuItem value="RESOLVED">{IncidentStatus.RESOLVED}</MenuItem>
-            <MenuItem value="CANCELLED">{IncidentStatus.CANCELLED}</MenuItem>
+            <MenuItem value="Ouvert">Ouvert</MenuItem>
+            <MenuItem value="En Cours">En Cours</MenuItem>
+            <MenuItem value="Résolu">Résolu</MenuItem>
+            <MenuItem value="Annulé">Annulé</MenuItem>
           </Select>
         </FormControl>
 
         <FormControl fullWidth margin="normal">
-          <InputLabel id="priority-label">Priority</InputLabel>
+          <InputLabel id="priority-label">Priorité</InputLabel>
           <Select
             labelId="priority-label"
             value={formData.priority}
             onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            label="Priority"
+            label="Priorité"
           >
-            <MenuItem value="LOW">{IncidentPriority.LOW}</MenuItem>
-            <MenuItem value="MEDIUM">{IncidentPriority.MEDIUM}</MenuItem>
-            <MenuItem value="HIGH">{IncidentPriority.HIGH}</MenuItem>
-            <MenuItem value="CRITICAL">{IncidentPriority.CRITICAL}</MenuItem>
+            <MenuItem value="Faible">Faible</MenuItem>
+            <MenuItem value="Moyenne">Moyenne</MenuItem>
+            <MenuItem value="Élevée">Élevée</MenuItem>
+            <MenuItem value="Critique">Critique</MenuItem>
           </Select>
         </FormControl>
       </DialogContent>
       <DialogActions>
-        <MDButton onClick={onClose}>Cancel</MDButton>
+        <MDButton onClick={onClose}>Annuler</MDButton>
         <MDButton onClick={handleSave} color="info">
-          Save
+          Enregistrer
         </MDButton>
       </DialogActions>
     </Dialog>
@@ -295,7 +390,7 @@ EditIncidentModal.propTypes = {
   onSave: PropTypes.func.isRequired,
 }
 
-// Resolution Modal
+// Modale de résolution
 function ResolveIncidentModal({ open, onClose, incident, onResolve }) {
   const [notes, setNotes] = useState("")
 
@@ -307,12 +402,12 @@ function ResolveIncidentModal({ open, onClose, incident, onResolve }) {
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Resolve Incident</DialogTitle>
+      <DialogTitle>Résoudre l&apos;Incident</DialogTitle>
       <DialogContent>
         <TextField
           autoFocus
           margin="dense"
-          label="Resolution Notes"
+          label="Notes de Résolution"
           fullWidth
           multiline
           rows={4}
@@ -321,9 +416,9 @@ function ResolveIncidentModal({ open, onClose, incident, onResolve }) {
         />
       </DialogContent>
       <DialogActions>
-        <MDButton onClick={onClose}>Cancel</MDButton>
+        <MDButton onClick={onClose}>Annuler</MDButton>
         <MDButton onClick={handleResolve} color="success">
-          Resolve
+          Résoudre
         </MDButton>
       </DialogActions>
     </Dialog>
@@ -337,7 +432,7 @@ ResolveIncidentModal.propTypes = {
   onResolve: PropTypes.func.isRequired,
 }
 
-// Main Component
+// Composant principal
 function IncidentTable() {
   const navigate = useNavigate()
   const [controller] = useMaterialUIController()
@@ -354,16 +449,34 @@ function IncidentTable() {
   const [selectedIncident, setSelectedIncident] = useState(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isResolveModalOpen, setIsResolveModalOpen] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState({
+    status: "",
+    priority: "",
+    incidentType: "",
+    reportedBy: "",
+    searchTerm: "",
+    createdAfter: "",
+    createdBefore: "",
+  })
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
 
-  // Queries
+  // Requêtes
   const { loading, error, data, refetch } = useQuery(GET_ALL_INCIDENTS, {
     client: clientMicroservice2,
-    fetchPolicy: "network-only", // Don't use cache
+    fetchPolicy: "network-only",
+    variables: {
+      filters: Object.keys(advancedFilters).reduce((acc, key) => {
+        if (advancedFilters[key] && advancedFilters[key] !== "") {
+          acc[key] = advancedFilters[key]
+        }
+        return acc
+      }, {}),
+    },
   })
 
   const { data: statsData } = useQuery(GET_INCIDENT_STATS, {
     client: clientMicroservice2,
-    fetchPolicy: "network-only", // Don't use cache
+    fetchPolicy: "network-only",
   })
 
   const [updateIncident] = useMutation(UPDATE_INCIDENT, {
@@ -373,21 +486,25 @@ function IncidentTable() {
     },
   })
 
-  // Effects
+  // Effets
   useEffect(() => {
-    if (data?.getAll) {
-      const allIncidents = data.getAll
+    if (data?.getAllIncidents) {
+      const allIncidents = data.getAllIncidents
 
-      // Apply filtering in JavaScript instead of GraphQL
+      // Appliquer le filtrage en JavaScript avec les valeurs du backend
       const filteredIncidents = statusFilter
-        ? allIncidents.filter((incident) => incident.status === statusFilter)
+        ? allIncidents.filter((incident) => {
+            // Convertir le statut français en clé d'énumération pour la comparaison
+            const statusKey = getStatusKey(statusFilter)
+            return incident.status === statusKey
+          })
         : allIncidents
 
       const transformedData = filteredIncidents.map((incident, index) => ({
         id: index + 1,
         incidentInfo: (
           <IncidentInfo
-            clientId={incident.orderId?.clientId}
+            orderId={incident.orderId}
             incidentType={incident.incidentType}
             description={incident.description}
           />
@@ -395,17 +512,16 @@ function IncidentTable() {
         status: <StatusChip status={incident.status} />,
         priority: <PriorityChip priority={incident.priority} />,
         description: incident.description,
-        createdAt: format(new Date(incident.createdAt), "dd/MM/yyyy HH:mm"),
+        createdAt: format(new Date(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: fr }),
         action: (
           <MDBox display="flex" gap={1}>
-           
-            <Tooltip title="Edit">
+            <Tooltip title="Modifier">
               <IconButton color="warning" size="small" onClick={() => handleEdit(incident)}>
                 <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            {incident.status !== "RESOLVED" && (
-              <Tooltip title="Mark as Resolved">
+            {getStatusValue(incident.status) !== "Résolu" && (
+              <Tooltip title="Marquer comme Résolu">
                 <IconButton color="success" size="small" onClick={() => handleResolveClick(incident)}>
                   <CheckCircleIcon fontSize="small" />
                 </IconButton>
@@ -418,7 +534,7 @@ function IncidentTable() {
       }))
       setIncidents(transformedData)
     }
-  }, [data, statusFilter]) // Add statusFilter as a dependency
+  }, [data, statusFilter])
 
   useEffect(() => {
     if (statsData?.getIncidentStats) {
@@ -426,7 +542,7 @@ function IncidentTable() {
     }
   }, [statsData])
 
-  // Handlers
+  // Gestionnaires d'événements
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
     switch (newValue) {
@@ -434,20 +550,18 @@ function IncidentTable() {
         setStatusFilter("")
         break
       case 1:
-        setStatusFilter("OPEN")
+        setStatusFilter("Ouvert") // Valeur française pour le filtrage
         break
       case 2:
-        setStatusFilter("IN_PROGRESS")
+        setStatusFilter("En Cours") // Valeur française pour le filtrage
         break
       case 3:
-        setStatusFilter("RESOLVED")
+        setStatusFilter("Résolu") // Valeur française pour le filtrage
         break
       default:
         setStatusFilter("")
     }
-    refetch()
   }
-
 
   const handleEdit = (incident) => {
     setSelectedIncident(incident)
@@ -459,21 +573,41 @@ function IncidentTable() {
     setIsResolveModalOpen(true)
   }
 
+  const handleApplyFilters = () => {
+    refetch()
+    setIsFilterModalOpen(false)
+  }
+
+  const handleResetFilters = () => {
+    setAdvancedFilters({
+      status: "",
+      priority: "",
+      incidentType: "",
+      reportedBy: "",
+      searchTerm: "",
+      createdAfter: "",
+      createdBefore: "",
+    })
+    setTabValue(0)
+    setStatusFilter("")
+    refetch()
+  }
+
   const handleSaveEdit = async (formData) => {
     try {
       await updateIncident({
         variables: {
           input: {
             incidentId: selectedIncident._id,
-            status: formData.status,
-            priority: formData.priority,
+            status: getStatusKey(formData.status), // Convertir en clé d'énumération
+            priority: getPriorityKey(formData.priority), // Convertir en clé d'énumération
           },
         },
       })
       refetch()
     } catch (err) {
-      console.error("Error updating incident:", err)
-      alert("Failed to update incident")
+      console.error("Erreur lors de la mise à jour de l'incident:", err)
+      alert("Échec de la mise à jour de l'incident: " + err.message)
     }
   }
 
@@ -483,42 +617,72 @@ function IncidentTable() {
         variables: {
           input: {
             incidentId: selectedIncident._id,
-            status: "RESOLVED",
+            status: "RESOLVED", // Utiliser directement la clé d'énumération
             resolutionNotes: notes,
           },
         },
       })
       refetch()
     } catch (err) {
-      console.error("Error resolving incident:", err)
-      alert("Failed to resolve incident")
+      console.error("Erreur lors de la résolution de l'incident:", err)
+      alert("Échec de la résolution de l'incident: " + err.message)
     }
   }
 
-  // Table columns
+  // Colonnes du tableau
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Client Address / Incident", accessor: "incidentInfo", width: "25%", align: "left" },
-    { Header: "Status", accessor: "status", align: "center" },
-    { Header: "Priority", accessor: "priority", align: "center" },
+    { Header: "Adresse Client / Incident", accessor: "incidentInfo", width: "25%", align: "left" },
+    { Header: "Statut", accessor: "status", align: "center" },
+    { Header: "Priorité", accessor: "priority", align: "center" },
     { Header: "Description", accessor: "description", align: "left" },
     { Header: "Date", accessor: "createdAt", align: "center" },
     { Header: "Actions", accessor: "action", align: "center" },
   ]
 
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error.message}</p>
+  if (loading)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5">Chargement des incidents...</MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
+
+  if (error)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+          <MDTypography variant="h5" color="error">
+            Erreur : {error.message}
+          </MDTypography>
+        </MDBox>
+      </DashboardLayout>
+    )
 
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
-        {/* Stats Cards */}
+        <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <MDBox>
+            <MDTypography variant="h4" fontWeight="medium">
+              Gestion des Incidents
+            </MDTypography>
+            <MDTypography variant="body2" color="text">
+              Suivi et résolution des incidents de livraison
+            </MDTypography>
+          </MDBox>
+        </MDBox>
+
+        {/* Cartes de statistiques */}
         <Grid container spacing={3} mb={3}>
           <Grid item xs={12} md={3}>
             <Card>
               <MDBox p={2} textAlign="center">
-                <MDTypography variant="h6">Total Incidents</MDTypography>
+                <MDTypography variant="h6">Total des Incidents</MDTypography>
                 <MDTypography variant="h3">{stats.totalIncidents}</MDTypography>
               </MDBox>
             </Card>
@@ -527,7 +691,7 @@ function IncidentTable() {
             <Card>
               <MDBox p={2} textAlign="center" bgcolor="rgba(255,0,0,0.05)">
                 <MDTypography variant="h6" color="error">
-                  Open
+                  Ouverts
                 </MDTypography>
                 <MDTypography variant="h3" color="error">
                   {stats.openIncidents}
@@ -539,7 +703,7 @@ function IncidentTable() {
             <Card>
               <MDBox p={2} textAlign="center" bgcolor="rgba(255,152,0,0.05)">
                 <MDTypography variant="h6" color="warning">
-                  In Progress
+                  En Cours
                 </MDTypography>
                 <MDTypography variant="h3" color="warning">
                   {stats.inProgressIncidents}
@@ -551,7 +715,7 @@ function IncidentTable() {
             <Card>
               <MDBox p={2} textAlign="center" bgcolor="rgba(76,175,80,0.05)">
                 <MDTypography variant="h6" color="success">
-                  Resolved
+                  Résolus
                 </MDTypography>
                 <MDTypography variant="h3" color="success">
                   {stats.resolvedIncidents}
@@ -559,30 +723,35 @@ function IncidentTable() {
               </MDBox>
             </Card>
           </Grid>
+          <Grid item xs={12}>
+            <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+             
+            </MDBox>
+          </Grid>
         </Grid>
 
         <Card>
           <MDBox p={3}>
             <Tabs value={tabValue} onChange={handleTabChange} variant="scrollable">
-              <Tab label="All" />
+              <Tab label="Tous" />
               <Tab
                 label={
                   <Box display="flex" alignItems="center">
-                    <ErrorIcon sx={{ mr: 0.5 }} /> Open
+                    <ErrorIcon sx={{ mr: 0.5 }} /> Ouverts
                   </Box>
                 }
               />
               <Tab
                 label={
                   <Box display="flex" alignItems="center">
-                    <HourglassEmptyIcon sx={{ mr: 0.5 }} /> In Progress
+                    <HourglassEmptyIcon sx={{ mr: 0.5 }} /> En Cours
                   </Box>
                 }
               />
               <Tab
                 label={
                   <Box display="flex" alignItems="center">
-                    <DoneAllIcon sx={{ mr: 0.5 }} /> Resolved
+                    <DoneAllIcon sx={{ mr: 0.5 }} /> Résolus
                   </Box>
                 }
               />
@@ -591,7 +760,7 @@ function IncidentTable() {
             <DataTable
               table={{ columns, rows: incidents }}
               isSorted={false}
-              entriesPerPage={{ defaultValue: 10 }}
+              entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
               showTotalEntries
               noEndBorder
             />
@@ -599,7 +768,114 @@ function IncidentTable() {
         </Card>
       </MDBox>
 
-      {/* Edit Modal */}
+      {/* Modale de filtres avancés */}
+      <Dialog open={isFilterModalOpen} onClose={() => setIsFilterModalOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Filtres Avancés</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Statut</InputLabel>
+                <Select
+                  value={advancedFilters.status}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, status: e.target.value })}
+                  label="Statut"
+                >
+                  <MenuItem value="">Tous</MenuItem>
+                  <MenuItem value="Ouvert">Ouvert</MenuItem>
+                  <MenuItem value="En Cours">En Cours</MenuItem>
+                  <MenuItem value="Résolu">Résolu</MenuItem>
+                  <MenuItem value="Annulé">Annulé</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Priorité</InputLabel>
+                <Select
+                  value={advancedFilters.priority}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, priority: e.target.value })}
+                  label="Priorité"
+                >
+                  <MenuItem value="">Toutes</MenuItem>
+                  <MenuItem value="Faible">Faible</MenuItem>
+                  <MenuItem value="Moyenne">Moyenne</MenuItem>
+                  <MenuItem value="Élevée">Élevée</MenuItem>
+                  <MenuItem value="Critique">Critique</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Type d&apos;Incident</InputLabel>
+                <Select
+                  value={advancedFilters.incidentType}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, incidentType: e.target.value })}
+                  label="Type d'Incident"
+                >
+                  <MenuItem value="">Tous</MenuItem>
+                  <MenuItem value="Colis Endommagé">Colis Endommagé</MenuItem>
+                  <MenuItem value="Adresse Incorrecte">Adresse Incorrecte</MenuItem>
+                  <MenuItem value="Client Introuvable">Client Introuvable</MenuItem>
+                  <MenuItem value="Colis Perdu">Colis Perdu</MenuItem>
+                  <MenuItem value="Retard Météorologique">Retard Météorologique</MenuItem>
+                  <MenuItem value="Retard de Circulation">Retard de Circulation</MenuItem>
+                  <MenuItem value="Colis Refusé">Colis Refusé</MenuItem>
+                  <MenuItem value="Autre">Autre</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Signalé par"
+                value={advancedFilters.reportedBy}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, reportedBy: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Recherche dans la description"
+                value={advancedFilters.searchTerm}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, searchTerm: e.target.value })}
+                placeholder="Rechercher dans les descriptions d'incidents..."
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Créé après"
+                type="date"
+                value={advancedFilters.createdAfter}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, createdAfter: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Créé avant"
+                type="date"
+                value={advancedFilters.createdBefore}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, createdBefore: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <MDButton onClick={() => setIsFilterModalOpen(false)}>Annuler</MDButton>
+          <MDButton onClick={handleResetFilters} color="secondary">
+            Réinitialiser
+          </MDButton>
+          <MDButton onClick={handleApplyFilters} color="info">
+            Appliquer les Filtres
+          </MDButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modale d'édition */}
       <EditIncidentModal
         open={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -607,7 +883,7 @@ function IncidentTable() {
         onSave={handleSaveEdit}
       />
 
-      {/* Resolve Modal */}
+      {/* Modale de résolution */}
       <ResolveIncidentModal
         open={isResolveModalOpen}
         onClose={() => setIsResolveModalOpen(false)}

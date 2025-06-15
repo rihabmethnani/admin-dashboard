@@ -1,3 +1,5 @@
+"use client"
+
 /**
 =========================================================
 * Material Dashboard 2 React - v2.2.0
@@ -36,34 +38,26 @@ Coded by www.creative-tim.com
 */
 
 // Material Dashboard 2 React layouts
-import Dashboard from 'layouts/dashboard';
-import Tables from 'layouts/tables';
-import Billing from 'layouts/billing';
-import RTL from 'layouts/rtl';
-import Notifications from 'layouts/notifications';
-import Profile from 'layouts/profile';
-import SignIn from 'layouts/authentication/sign-in';
-import SignUp from 'layouts/authentication/sign-up';
+import Dashboard from "layouts/dashboard"
+import Profile from "layouts/profile"
+import SignIn from "layouts/authentication/sign-in"
 
 // @mui icons
-import Icon from '@mui/material/Icon';
-import PartnerTable from 'layouts/user/PartnerTable';
-import ClientTable from 'layouts/user/ClientTable';
-import DriverTable from 'layouts/user/DriverTable';
-import AdminTable from 'layouts/user/AdminTable';
-import OrderTable from 'layouts/order/OrderTable';
-import { useAuth } from 'context/AuthContext';
-import CourseTable from 'layouts/user/CourseTabel';
-import IncidentTable from 'layouts/order/incidentTable';
-  // const {currentUser,setCurentUser}=useAuth()
-  // console.log("Curraaaaaent User:", currentUser);
+import Icon from "@mui/material/Icon"
+import PartnerTable from "layouts/user/PartnerTable"
+import DriverTable from "layouts/user/DriverTable"
+import OrderTable from "layouts/order/OrderTable"
+import CourseTable from "layouts/user/CourseTabel"
+import IncidentTable from "layouts/order/incidentTable"
+// const {currentUser,setCurentUser}=useAuth()
+// console.log("Curraaaaaent User:", currentUser);
 const routesAssistantAdmin = [
   {
-    type: 'collapse',
-    name: 'Dashboard',
-    key: 'dashboard',
+    type: "collapse",
+    name: "Tableau de Bord",
+    key: "dashboard",
     icon: <Icon fontSize="small">dashboard</Icon>,
-    route: '/dashboard',
+    route: "/dashboard",
     component: <Dashboard />,
   },
   // {
@@ -76,11 +70,11 @@ const routesAssistantAdmin = [
   // },
 
   {
-    type: 'collapse',
-    name: 'Partners',
-    key: 'partners',
+    type: "collapse",
+    name: "Partenaires",
+    key: "partners",
     icon: <Icon fontSize="small">groups</Icon>, // Icône pour les partenaires
-    route: '/partners',
+    route: "/partners",
     component: <PartnerTable />, // Utilisez le composant PartnerTable
   },
   // {
@@ -92,41 +86,41 @@ const routesAssistantAdmin = [
   //   component: <ClientTable />, // Utilisez le composant ClientTable
   // },
   {
-    type: 'collapse',
-    name: 'Drivers',
-    key: 'drivers',
+    type: "collapse",
+    name: "Chauffeurs",
+    key: "drivers",
     icon: <Icon fontSize="small">directions_car</Icon>, // Icône pour les chauffeurs
-    route: '/drivers',
+    route: "/drivers",
     component: <DriverTable />, // Utilisez le composant DriverTable
   },
   {
-    type: 'collapse',
-    name: 'Orders',
-    key: 'orders',
+    type: "collapse",
+    name: "Commandes",
+    key: "orders",
     icon: <Icon fontSize="small">shopping_cart</Icon>, // Icône pour les commandes
-    route: '/orders',
+    route: "/orders",
     component: <OrderTable />, // Utilisez le composant OrderTable
   },
   {
-    type: 'collapse',
-    name: 'Course',
-    key: 'tables',
+    type: "collapse",
+    name: "Courses",
+    key: "tables",
     icon: <Icon fontSize="small">receipt_long</Icon>,
-    route: '/Course',
-    component: <CourseTable/>,
+    route: "/Course",
+    component: <CourseTable />,
   },
 
-   {
-      type: 'collapse',
-      name: 'Incident',
-      key: 'tables',
-      icon: <Icon fontSize="small">warning</Icon>,
-      route: '/Incident',
-      component: <IncidentTable/>,
-    },
+  {
+    type: "collapse",
+    name: "Incidents",
+    key: "tables",
+    icon: <Icon fontSize="small">warning</Icon>,
+    route: "/Incident",
+    component: <IncidentTable />,
+  },
   // {
   //   type: 'collapse',
-  //   name: 'Billing',
+  //   name: 'Facturation',
   //   key: 'billing',
   //   icon: <Icon fontSize="small">receipt_long</Icon>,
   //   route: '/billing',
@@ -149,31 +143,29 @@ const routesAssistantAdmin = [
   //   component: <Notifications />,
   // },
   {
-    type: 'collapse',
-    name: 'Profile',
-    key: 'profile',
+    type: "collapse",
+    name: "Profil",
+    key: "profile",
     icon: <Icon fontSize="small">person</Icon>,
-    route: '/profile',
+    route: "/profile",
     component: <Profile />,
   },
   {
-    type: 'divider',
-    name: 'Sign Out',
-    key: 'sign-in',
+    type: "divider",
+    name: "Se Déconnecter",
+    key: "sign-in",
     icon: <Icon fontSize="small">login</Icon>,
-    route: '/authentication/sign-in',
+    route: "/authentication/sign-in",
     component: <SignIn />,
   },
   // {
   //   type: 'collapse',
-  //   name: 'Sign Up',
+  //   name: 'S\'Inscrire',
   //   key: 'sign-up',
   //   icon: <Icon fontSize="small">assignment</Icon>,
   //   route: '/authentication/sign-up',
   //   component: <SignUp />,
   // },
+]
 
-
-];
-
-export default routesAssistantAdmin;
+export default routesAssistantAdmin

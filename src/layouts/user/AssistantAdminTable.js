@@ -20,9 +20,7 @@ import {
   Divider,
   InputAdornment,
   IconButton,
-  Avatar,
   Box,
-  Chip,
 } from "@mui/material"
 import MDButton from "components/MDButton"
 import PropTypes from "prop-types"
@@ -34,12 +32,10 @@ import { useAuth } from "context/AuthContext"
 import PhoneIcon from "@mui/icons-material/Phone"
 import EmailIcon from "@mui/icons-material/Email"
 import HomeIcon from "@mui/icons-material/Home"
-import WorkIcon from "@mui/icons-material/Work"
 import PersonIcon from "@mui/icons-material/Person"
 import LockIcon from "@mui/icons-material/Lock"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff"
-import ImageIcon from "@mui/icons-material/Image"
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline"
 
 const GET_ADMIN_ASSISTANTS = gql`
@@ -52,6 +48,7 @@ const GET_ADMIN_ASSISTANTS = gql`
       address
       image
       zoneResponsabilite
+      createdAt
     }
   }
 `
@@ -94,20 +91,20 @@ const CREATE_ADMIN_ASSISTANT = gql`
 // Form validation functions
 const validatePhone = (phone) => {
   // Allow empty phone or phone with only digits
-  return !phone || /^\d+$/.test(phone) ? "" : "Phone must contain only numbers"
+  return !phone || /^\d+$/.test(phone) ? "" : "Le téléphone ne doit contenir que des chiffres"
 }
 
 const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) ? "" : "Please enter a valid email address"
+  return emailRegex.test(email) ? "" : "Veuillez saisir une adresse email valide"
 }
 
 const validateRequired = (value, fieldName) => {
-  return value ? "" : `${fieldName} is required`
+  return value ? "" : `${fieldName} est requis`
 }
 
 const validatePasswordMatch = (password, confirmPassword) => {
-  return password === confirmPassword ? "" : "Passwords do not match"
+  return password === confirmPassword ? "" : "Les mots de passe ne correspondent pas"
 }
 
 function AssistantAdminTable() {
@@ -118,6 +115,8 @@ function AssistantAdminTable() {
   const [controller] = useMaterialUIController()
   const { searchTerm } = controller
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [sortOrder, setSortOrder] = useState("newest")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const [updateAssistantAdminMutation] = useMutation(UPDATE_ADMIN_ASSISTANT, {
     client: clientMicroservice1,
@@ -138,7 +137,7 @@ function AssistantAdminTable() {
           author: <Author image={admin.image || null} name={admin.name} email={admin.email} />,
           phone: admin.phone || "N/A",
           address: admin.address || "N/A",
-         
+          createdAt: admin.createdAt ? new Date(admin.createdAt) : new Date(),
           action: (
             <MDBox display="flex" gap={1}>
               <EditModal assistantAdmin={admin} onSave={handleEdit}>
@@ -161,36 +160,46 @@ function AssistantAdminTable() {
     }
   }, [data])
 
-  const filteredAssistantAdmins = assistantAdmins.filter(
-    (admin) =>
-      admin.author.props.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.author.props.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredAndSortedAssistantAdmins = assistantAdmins
+    .filter(
+      (admin) =>
+        admin.author.props.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        admin.author.props.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (admin.phone && admin.phone.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (admin.address && admin.address.toLowerCase().includes(searchQuery.toLowerCase())),
+    )
+    .sort((a, b) => {
+      if (sortOrder === "newest") {
+        return b.createdAt - a.createdAt
+      } else {
+        return a.createdAt - b.createdAt
+      }
+    })
 
   const handleDelete = async (admin) => {
     try {
-      const confirmed = window.confirm("Are you sure you want to delete this assistant admin?")
+      const confirmed = window.confirm("Êtes-vous sûr de vouloir supprimer cet assistant administratif ?")
       if (!confirmed) return
 
       const { data: deletedUser } = await softRemoveUserMutation({
         variables: { id: admin._id },
       })
 
-      console.log("Assistant admin deleted:", deletedUser)
+      console.log("Assistant administratif supprimé:", deletedUser)
 
       await refetch()
 
-      alert("Assistant admin deleted successfully!")
+      alert("Assistant administratif supprimé avec succès !")
     } catch (error) {
-      console.error("Error deleting assistant admin:", error.message)
-      alert("Failed to delete assistant admin.")
+      console.error("Erreur lors de la suppression de l'assistant administratif:", error.message)
+      alert("Échec de la suppression de l'assistant administratif.")
     }
   }
 
   const handleEdit = async (updatedData) => {
     try {
       if (!updatedData._id) {
-        throw new Error("Assistant admin ID is missing.")
+        throw new Error("L'ID de l'assistant administratif est manquant.")
       }
 
       const { data: updatedUser } = await updateAssistantAdminMutation({
@@ -207,12 +216,12 @@ function AssistantAdminTable() {
         },
       })
 
-      console.log("Assistant admin updated:", updatedUser)
+      console.log("Assistant administratif mis à jour:", updatedUser)
       await refetch()
-      alert("Assistant admin updated successfully!")
+      alert("Assistant administratif mis à jour avec succès !")
     } catch (error) {
-      console.error("Error updating assistant admin:", error.message)
-      alert("Failed to update assistant admin.")
+      console.error("Erreur lors de la mise à jour de l'assistant administratif:", error.message)
+      alert("Échec de la mise à jour de l'assistant administratif.")
     }
   }
 
@@ -222,7 +231,7 @@ function AssistantAdminTable() {
         <DashboardNavbar />
         <MDBox display="flex" justifyContent="center" alignItems="center" height="70vh">
           <MDTypography variant="h5" color="text">
-            Loading assistant admins...
+            Chargement des assistants administratifs...
           </MDTypography>
         </MDBox>
       </DashboardLayout>
@@ -234,7 +243,7 @@ function AssistantAdminTable() {
         <DashboardNavbar />
         <MDBox display="flex" justifyContent="center" alignItems="center" height="70vh">
           <MDTypography variant="h5" color="error">
-            Error: {error.message}
+            Erreur : {error.message}
           </MDTypography>
         </MDBox>
       </DashboardLayout>
@@ -242,17 +251,17 @@ function AssistantAdminTable() {
 
   const columns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Author", accessor: "author", width: "30%", align: "left" },
-    { Header: "Phone", accessor: "phone", align: "center" },
-    { Header: "Address", accessor: "address", align: "left" },
-    { Header: "Action", accessor: "action", align: "center" },
+    { Header: "Utilisateur", accessor: "author", width: "30%", align: "left" },
+    { Header: "Téléphone", accessor: "phone", align: "center" },
+    { Header: "Adresse", accessor: "address", align: "left" },
+    { Header: "Actions", accessor: "action", align: "center" },
   ]
 
   const unpermissionColumns = [
     { Header: "ID", accessor: "id", align: "center" },
-    { Header: "Author", accessor: "author", width: "30%", align: "left" },
-    { Header: "Phone", accessor: "phone", align: "center" },
-    { Header: "Address", accessor: "address", align: "left" },
+    { Header: "Utilisateur", accessor: "author", width: "30%", align: "left" },
+    { Header: "Téléphone", accessor: "phone", align: "center" },
+    { Header: "Adresse", accessor: "address", align: "left" },
   ]
 
   const permissionColumns = currentUser?.role === "ADMIN" ? columns : unpermissionColumns
@@ -263,20 +272,70 @@ function AssistantAdminTable() {
       <MDBox pt={6} pb={3}>
         <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <MDBox>
-            
-          
+            <MDTypography variant="h4" fontWeight="medium">
+              Gestion des Assistants Administratifs
+            </MDTypography>
+            <MDTypography variant="body2" color="text">
+              Gérez les comptes des assistants administratifs de votre organisation
+            </MDTypography>
           </MDBox>
 
-          {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
-            <MDButton
-              variant="gradient"
-              color="warning"
-              onClick={() => setIsAddModalOpen(true)}
-              startIcon={<AddCircleOutlineIcon />}
-            >
-              Add Assistant Admin
-            </MDButton>
-          )}
+          <MDBox display="flex" alignItems="center" gap={2}>
+            <TextField
+              label="Rechercher"
+              variant="outlined"
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Box sx={{ minWidth: 120 }}>
+              <TextField
+                select
+                label="Trier par"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                size="small"
+                SelectProps={{
+                  native: true,
+                }}
+              >
+                <option value="newest">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+              </TextField>
+            </Box>
+
+            {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
+              <MDButton
+                variant="gradient"
+                color="warning"
+                onClick={() => setIsAddModalOpen(true)}
+                startIcon={<AddCircleOutlineIcon />}
+              >
+                Ajouter un Assistant
+              </MDButton>
+            )}
+          </MDBox>
         </MDBox>
 
         <Grid container spacing={6}>
@@ -286,7 +345,7 @@ function AssistantAdminTable() {
                 <DataTable
                   table={{
                     columns: permissionColumns,
-                    rows: filteredAssistantAdmins,
+                    rows: filteredAndSortedAssistantAdmins,
                   }}
                   isSorted={false}
                   entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
@@ -318,13 +377,13 @@ function AssistantAdminTable() {
               },
             })
 
-            console.log("New assistant admin created:", newAssistantAdmin)
-            alert("Assistant admin created successfully!")
+            console.log("Nouvel assistant administratif créé:", newAssistantAdmin)
+            alert("Assistant administratif créé avec succès !")
 
             refetch()
           } catch (error) {
-            console.error("Error creating assistant admin:", error.message)
-            alert("Failed to create assistant admin.")
+            console.error("Erreur lors de la création de l'assistant administratif:", error.message)
+            alert("Échec de la création de l'assistant administratif.")
           }
         }}
       />
@@ -353,7 +412,7 @@ function EditModal({ assistantAdmin, onSave, children }) {
 
   const validateForm = () => {
     const newErrors = {
-      name: validateRequired(formData.name, "Name"),
+      name: validateRequired(formData.name, "Nom"),
       email: validateEmail(formData.email),
       phone: validatePhone(formData.phone),
     }
@@ -366,7 +425,7 @@ function EditModal({ assistantAdmin, onSave, children }) {
 
   const handleSave = () => {
     if (!formData._id) {
-      alert("Assistant admin ID is missing. Cannot update.")
+      alert("L'ID de l'assistant administratif est manquant. Impossible de mettre à jour.")
       return
     }
 
@@ -403,8 +462,9 @@ function EditModal({ assistantAdmin, onSave, children }) {
           },
         }}
       >
-        <DialogTitle sx={{ bgcolor: "white", color: "white", display: "flex", alignItems: "center" }}>
-          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit Assistant Admin
+        <DialogTitle sx={{ bgcolor: "white", color: "black", display: "flex", alignItems: "center" }}>
+          <EditIcon fontSize="small" sx={{ mr: 1, color: "warning.main" }} />
+          Modifier l&apos;Assistant Administratif
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Box display="flex" justifyContent="center" mb={3}>
@@ -418,7 +478,7 @@ function EditModal({ assistantAdmin, onSave, children }) {
           </Box>
 
           <TextField
-            label="Name"
+            label="Nom"
             value={formData.name}
             onChange={(e) => handleChange("name", e.target.value)}
             fullWidth
@@ -452,7 +512,7 @@ function EditModal({ assistantAdmin, onSave, children }) {
             }}
           />
           <TextField
-            label="Phone"
+            label="Téléphone"
             value={formData.phone}
             onChange={(e) => handleChange("phone", e.target.value)}
             fullWidth
@@ -468,7 +528,7 @@ function EditModal({ assistantAdmin, onSave, children }) {
             }}
           />
           <TextField
-            label="Address"
+            label="Adresse"
             value={formData.address}
             onChange={(e) => handleChange("address", e.target.value)}
             fullWidth
@@ -481,9 +541,9 @@ function EditModal({ assistantAdmin, onSave, children }) {
               ),
             }}
           />
-        
+
           {/* <TextField
-            label="Image URL"
+            label="URL de l'image"
             value={formData.image}
             onChange={(e) => handleChange("image", e.target.value)}
             fullWidth
@@ -499,10 +559,10 @@ function EditModal({ assistantAdmin, onSave, children }) {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <MDButton onClick={() => setOpen(false)} color="warning" variant="outlined">
-            Cancel
+            Annuler
           </MDButton>
           <MDButton onClick={handleSave} color="warning" variant="gradient">
-            Save Changes
+            Enregistrer les Modifications
           </MDButton>
         </DialogActions>
       </Dialog>
@@ -549,10 +609,10 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
 
   const validateForm = () => {
     const newErrors = {
-      name: validateRequired(formData.name, "Name"),
+      name: validateRequired(formData.name, "Nom"),
       email: validateEmail(formData.email),
       phone: validatePhone(formData.phone),
-      password: validateRequired(formData.password, "Password"),
+      password: validateRequired(formData.password, "Mot de passe"),
       confirmPassword: validatePasswordMatch(formData.password, formData.confirmPassword),
     }
 
@@ -623,24 +683,26 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
         },
       }}
     >
-      <DialogTitle sx={{ bgcolor: "white", color: "white", display: "flex", alignItems: "center" }}>
-        <AddCircleOutlineIcon sx={{ mr: 1 }} /> Add New Assistant Admin
+      <DialogTitle sx={{ bgcolor: "white", color: "black", display: "flex", alignItems: "center" }}>
+        <AddCircleOutlineIcon sx={{ mr: 1, color: "warning.main" }} />
+        Ajouter un Nouvel Assistant Administratif
       </DialogTitle>
       <DialogContent sx={{ pt: 3 }}>
         <MDBox mb={2}>
           <MDTypography variant="body2" color="text">
-            Create a new assistant admin account. All fields marked with * are required.
+            Créer un nouveau compte d&apos;assistant administratif. Tous les champs marqués d&apos;un * sont
+            obligatoires.{" "}
           </MDTypography>
         </MDBox>
 
         <Divider sx={{ mb: 3 }} />
 
         <MDTypography variant="subtitle2" fontWeight="medium" color="warning" mb={2}>
-        Personal Information
-                </MDTypography>
+          Informations Personnelles
+        </MDTypography>
 
         <TextField
-          label="Name"
+          label="Nom"
           value={formData.name}
           onChange={(e) => handleChange("name", e.target.value)}
           fullWidth
@@ -674,7 +736,7 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
           }}
         />
         <TextField
-          label="Phone"
+          label="Téléphone"
           value={formData.phone}
           onChange={(e) => handleChange("phone", e.target.value)}
           fullWidth
@@ -690,7 +752,7 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
           }}
         />
         <TextField
-          label="Address"
+          label="Adresse"
           value={formData.address}
           onChange={(e) => handleChange("address", e.target.value)}
           fullWidth
@@ -703,16 +765,15 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
             ),
           }}
         />
-      
 
         <Divider sx={{ my: 3 }} />
 
         <MDTypography variant="subtitle2" fontWeight="medium" color="warning" mb={2}>
-          Account Security
+          Sécurité du Compte
         </MDTypography>
 
         <TextField
-          label="Password"
+          label="Mot de passe"
           type={showPassword ? "text" : "password"}
           value={formData.password}
           onChange={(e) => handleChange("password", e.target.value)}
@@ -737,7 +798,7 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
           }}
         />
         <TextField
-          label="Confirm Password"
+          label="Confirmer le mot de passe"
           type={showConfirmPassword ? "text" : "password"}
           value={formData.confirmPassword}
           onChange={(e) => handleChange("confirmPassword", e.target.value)}
@@ -762,15 +823,16 @@ function AddAssistantAdminModal({ open, onClose, onCreate }) {
           }}
         />
         <FormHelperText sx={{ mt: 2 }}>
-          Fields marked with * are required. Phone numbers must contain only digits.
+          Les champs marqués d&apos;un * sont obligatoires. Les numéros de téléphone ne doivent contenir que des
+          chiffres.
         </FormHelperText>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>
         <MDButton onClick={onClose} color="warning" variant="outlined">
-          Cancel
+          Annuler
         </MDButton>
         <MDButton onClick={handleSave} color="warning" variant="gradient">
-          Create Account
+          Créer le Compte
         </MDButton>
       </DialogActions>
     </Dialog>

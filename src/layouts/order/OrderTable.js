@@ -15,9 +15,13 @@ import {
   FormControl,
   InputLabel,
   Select,
+  TextField,
+  InputAdornment,
+  Box,
 } from "@mui/material"
 import { useQuery, useMutation, gql } from "@apollo/client"
 import HistoryIcon from "@mui/icons-material/History"
+import SearchIcon from "@mui/icons-material/Search"
 import MDBox from "components/MDBox"
 import MDTypography from "components/MDTypography"
 import MDButton from "components/MDButton"
@@ -27,46 +31,50 @@ import DataTable from "examples/Tables/DataTable"
 import EditIcon from "@mui/icons-material/Edit"
 import { clientMicroservice1 } from "apolloClients/microservice1"
 import { clientMicroservice2 } from "apolloClients/microservice2"
-import { GET_ORDERS, GET_ORDER_HISTORY, GET_USERS_BY_ROLE, UPDATE_ORDER_STATUS } from "graphql/queries/orderQueries"
+import { GET_ORDER_HISTORY, GET_USERS_BY_ROLE, UPDATE_ORDER_STATUS } from "graphql/queries/orderQueries"
 import IconButton from "@mui/material/IconButton"
-import DeleteIcon from "@mui/icons-material/Delete"
 import { useSnackbar } from "notistack"
 import OrderHistoryModal from "./OrderHistoryModal"
 import EditStatusModal from "./EditStatusModal"
 import { useAuth } from "context/AuthContext"
 import ErrorIcon from "@mui/icons-material/Error"
 import LocationOnIcon from "@mui/icons-material/LocationOn"
+
+// Statuts des commandes selon l'enum backend
 const ORDER_STATUSES = [
-  "PENDING",
-  "IN_CENTRAL_WAREHOUSE",
-  "ASSIGNED",
-  "OUT_FOR_DELIVERY",
-  "DELIVERED",
-  "DELIVERY_FAILED",
-  "RETURNED",
-  "CANCELED",
-  "PENDING_RESOLUTION",
-  "FOLLOW_UP",
-  "DELAYED",
-  "PARTIALLY_DELIVERED",
-  "IN_WAREHOUSE",
-  "AWAITING_CONFIRMATION",
-  "VERIFICATION",
-];
+  "EN_ATTENTE",
+  "ATTRIBUÉ",
+  "EN_LIVRAISON",
+  "LIVRÉ",
+  "ÉCHEC_LIVRAISON",
+  "RETOURNÉ",
+  "ANNULÉ",
+  "EN_ATTENTE_RÉSOLUTION",
+  "RETARDÉ",
+  "PARTIELLEMENT_LIVRÉ",
+  "EN_ENTREPOT", // Corrigé : sans accent circonflexe
+  "EN_ATTENTE_CONFIRMATION",
+  "EN_VÉRIFICATION",
+  "RELANCE",
+]
 
-
-const GET_USER_BY_ID = gql`
-  query GetUserById($id: String!) {
-    getUserById(id: $id) {
+export const GET_ORDERS_BY_RESPONSIBILITY_ZONE = gql`
+  query GetOrdersByResponsibilityZone {
+    getOrdersByResponsibilityZone {
       _id
-      name
+      status
+      partnerId
+      driverId
+      clientId
+      region
+      createdAt
     }
   }
 `
 
-const GET_CLIENT_BY_ID = gql`
-  query GetClientById($id: String!) {
-    getClientById(id: $id) {
+const GET_USER_BY_ID = gql`
+  query GetUserById($id: String!) {
+    getUserById(id: $id) {
       _id
       name
       address
@@ -91,7 +99,7 @@ function OrderTable() {
     loading: ordersLoading,
     data: ordersData,
     refetch: refetchOrders,
-  } = useQuery(GET_ORDERS, { client: clientMicroservice2 })
+  } = useQuery(GET_ORDERS_BY_RESPONSIBILITY_ZONE, { client: clientMicroservice2 })
   const { data: driversData } = useQuery(GET_USERS_BY_ROLE, {
     client: clientMicroservice1,
     variables: { role: "DRIVER" },
@@ -117,51 +125,55 @@ function OrderTable() {
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false)
   const [isEditStatusModalOpen, setIsEditStatusModalOpen] = useState(false)
 
+  // Search and sort state variables
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortOrder, setSortOrder] = useState("newest")
+
   // Error popup states
   const [errorPopupOpen, setErrorPopupOpen] = useState(false)
   const [errorPopupMessage, setErrorPopupMessage] = useState("")
-  const [errorPopupTitle, setErrorPopupTitle] = useState("Error")
+  const [errorPopupTitle, setErrorPopupTitle] = useState("Erreur")
 
   // Function to handle assignment errors based on the error message
   const handleAssignmentError = (error) => {
-    console.error("Assignment error:", error)
+    console.error("Erreur d&apos;assignation:", error)
 
     // Extract the error message
     const errorMsg = error.message || ""
-    let popupTitle = "Assignment Error"
+    let popupTitle = "Erreur d&apos;Assignation"
     let popupMessage = ""
 
     // Check for specific error conditions based on the backend function
     if (errorMsg.includes("Only ADMIN or AdminAssistant")) {
-      popupTitle = "Permission Denied"
-      popupMessage = "Only administrators can assign orders to drivers."
+      popupTitle = "Permission Refusée"
+      popupMessage = "Seuls les administrateurs peuvent assigner des commandes aux chauffeurs."
     } else if (errorMsg.includes("User not found")) {
-      popupTitle = "Authentication Error"
-      popupMessage = "User authentication error: Please log in again."
+      popupTitle = "Erreur d&apos;Authentification"
+      popupMessage = "Erreur d&apos;authentification utilisateur : Veuillez vous reconnecter."
     } else if (errorMsg.includes("déjà assignés à ce livreur aujourd'hui")) {
       // Extract the order IDs if available
       const orderIdsMatch = errorMsg.match(/: (.*?)$/)
       const orderIdsStr = orderIdsMatch ? orderIdsMatch[1] : ""
 
-      popupTitle = "Orders Already Assigned"
-      popupMessage = `These orders are already assigned to this driver today${orderIdsStr ? ": " + orderIdsStr : ""}.`
+      popupTitle = "Commandes Déjà Assignées"
+      popupMessage = `Ces commandes sont déjà assignées à ce chauffeur aujourd&apos;hui${orderIdsStr ? ": " + orderIdsStr : ""}.`
     } else if (errorMsg.includes("Driver already has")) {
       // Extract the counts if available
       const existingMatch = errorMsg.match(/has (\d+) orders/)
       const remainingMatch = errorMsg.match(/up to (\d+) more/)
 
-      const existingCount = existingMatch ? existingMatch[1] : "multiple"
-      const remainingCount = remainingMatch ? remainingMatch[1] : "few"
+      const existingCount = existingMatch ? existingMatch[1] : "plusieurs"
+      const remainingCount = remainingMatch ? remainingMatch[1] : "quelques"
 
-      popupTitle = "Driver Capacity Limit"
-      popupMessage = `Driver already has ${existingCount} orders assigned today. You can only assign up to ${remainingCount} more orders.`
+      popupTitle = "Limite de Capacité du Chauffeur"
+      popupMessage = `Le chauffeur a déjà ${existingCount} commandes assignées aujourd&apos;hui. Vous ne pouvez assigner que ${remainingCount} commandes supplémentaires maximum.`
     } else if (errorMsg.includes("One or more orders not found")) {
-      popupTitle = "Orders Not Found"
-      popupMessage = "One or more selected orders no longer exist in the system."
+      popupTitle = "Commandes Non Trouvées"
+      popupMessage = "Une ou plusieurs commandes sélectionnées n&apos;existent plus dans le système."
     } else {
       // Default error message for any other errors
-      popupTitle = "Assignment Failed"
-      popupMessage = "Failed to assign orders to driver. Please try again later."
+      popupTitle = "Échec de l&apos;Assignation"
+      popupMessage = "Échec de l&apos;assignation des commandes au chauffeur. Veuillez réessayer plus tard."
     }
 
     // Set the error popup content and show it
@@ -194,26 +206,9 @@ function OrderTable() {
     }
   }, [driversData])
 
-  const fetchDriverName = async (driverId) => {
-    if (!driverId || drivers[driverId]) return
-
-    try {
-      const { data: driverData } = await clientMicroservice1.query({
-        query: GET_USER_BY_ID,
-        variables: { id: driverId },
-      })
-
-      setDrivers((prev) => ({
-        ...prev,
-        [driverId]: driverData.getUserById.name,
-      }))
-    } catch (err) {
-      console.error("Error fetching driver:", err.message)
-    }
-  }
-
+  // Fonction pour récupérer le nom du partenaire
   const fetchPartnerName = async (partnerId) => {
-    if (!partnerId || partners[partnerId]) return
+    if (!partnerId || partners[partnerId]) return partners[partnerId] || "N/A"
 
     try {
       const { data: partnerData } = await clientMicroservice1.query({
@@ -221,88 +216,99 @@ function OrderTable() {
         variables: { id: partnerId },
       })
 
+      const partnerName = partnerData.getUserById.name
       setPartners((prev) => ({
         ...prev,
-        [partnerId]: partnerData.getUserById.name,
+        [partnerId]: partnerName,
       }))
+      return partnerName
     } catch (err) {
-      console.error("Error fetching partner:", err.message)
+      console.error("Erreur lors de la récupération du partenaire:", err.message)
+      return "Erreur"
     }
   }
 
-  const fetchClientData = async (clientId) => {
+  // Fonction pour récupérer le nom du chauffeur
+  const fetchDriverName = async (driverId) => {
+    if (!driverId || drivers[driverId]) return drivers[driverId] || "N/A"
+
+    try {
+      const { data: driverData } = await clientMicroservice1.query({
+        query: GET_USER_BY_ID,
+        variables: { id: driverId },
+      })
+
+      const driverName = driverData.getUserById.name
+      setDrivers((prev) => ({
+        ...prev,
+        [driverId]: driverName,
+      }))
+      return driverName
+    } catch (err) {
+      console.error("Erreur lors de la récupération du chauffeur:", err.message)
+      return "Erreur"
+    }
+  }
+
+  // Fonction pour récupérer l'adresse du client
+  const fetchClientAddress = async (clientId) => {
     if (!clientId || clients[clientId]) return clients[clientId]?.address || "N/A"
 
     try {
+      // Essayer d'abord avec microservice2
       const { data: clientData } = await clientMicroservice2.query({
-        query: GET_CLIENT_BY_ID,
+        query: GET_USER_BY_ID,
         variables: { id: clientId },
       })
 
-      if (clientData?.getClientById) {
+      const clientAddress = clientData.getUserById.address || "Adresse non renseignée"
+      setClients((prev) => ({
+        ...prev,
+        [clientId]: {
+          name: clientData.getUserById.name,
+          address: clientAddress,
+          phone: clientData.getUserById.phone
+        },
+      }))
+      return clientAddress
+    } catch (err) {
+      console.error("Erreur lors de la récupération du client avec microservice2:", err.message)
+      
+      // Si ça échoue, essayer avec microservice1
+      try {
+        const { data: clientData } = await clientMicroservice1.query({
+          query: GET_USER_BY_ID,
+          variables: { id: clientId },
+        })
+
+        const clientAddress = clientData.getUserById.address || "Adresse non renseignée"
         setClients((prev) => ({
           ...prev,
-          [clientId]: clientData.getClientById,
+          [clientId]: {
+            name: clientData.getUserById.name,
+            address: clientAddress,
+            phone: clientData.getUserById.phone
+          },
         }))
-        return clientData.getClientById.address || "N/A"
+        return clientAddress
+      } catch (err2) {
+        console.error("Erreur lors de la récupération du client avec microservice1:", err2.message)
+        return "Erreur de chargement"
       }
-      return "N/A"
-    } catch (err) {
-      console.error("Error fetching client:", err.message)
-      return "N/A"
     }
   }
 
   useEffect(() => {
-    if (ordersData?.orders) {
+    if (ordersData?.getOrdersByResponsibilityZone) {
       const fetchUsers = async () => {
-        // First fetch all partner, driver, and client data
+        // Récupérer toutes les données des utilisateurs
         const ordersWithUsers = await Promise.all(
-          ordersData.orders.map(async (order) => {
-            let partnerName = "N/A"
-            let driverName = "N/A"
-            let clientAddress = "N/A"
-
-            if (order.partnerId) {
-              try {
-                const { data: partnerData } = await clientMicroservice1.query({
-                  query: GET_USER_BY_ID,
-                  variables: { id: order.partnerId },
-                })
-                partnerName = partnerData.getUserById.name
-                setPartners((prev) => ({ ...prev, [order.partnerId]: partnerName }))
-              } catch (err) {
-                console.error("Error fetching partner:", err.message)
-              }
-            }
-
-            if (order.driverId) {
-              try {
-                const { data: driverData } = await clientMicroservice1.query({
-                  query: GET_USER_BY_ID,
-                  variables: { id: order.driverId },
-                })
-                driverName = driverData.getUserById.name
-                setDrivers((prev) => ({ ...prev, [order.driverId]: driverName }))
-              } catch (err) {
-                console.error("Error fetching driver:", err.message)
-              }
-            }
-
-            if (order.clientId) {
-              try {
-                const { data: clientData } = await clientMicroservice2.query({
-                  query: GET_CLIENT_BY_ID,
-                  variables: { id: order.clientId },
-                })
-                if (clientData?.getClientById) {
-                  clientAddress = clientData.getClientById.address || "N/A"
-                  setClients((prev) => ({ ...prev, [order.clientId]: clientData.getClientById }))
-                }
-              } catch (err) {
-                console.error("Error fetching client:", err.message)
-              }
-            }
+          ordersData.getOrdersByResponsibilityZone.map(async (order) => {
+            const [partnerName, driverName, clientAddress] = await Promise.all([
+              order.partnerId ? fetchPartnerName(order.partnerId) : "N/A",
+              order.driverId ? fetchDriverName(order.driverId) : "N/A",
+              order.clientId ? fetchClientAddress(order.clientId) : "N/A"
+            ])
 
             return {
               ...order,
@@ -313,7 +319,7 @@ function OrderTable() {
           }),
         )
 
-        // Then set the orders with the fetched names and addresses
+        // Créer les lignes du tableau
         setOrders(
           ordersWithUsers.map((order, index) => ({
             _id: order._id,
@@ -322,6 +328,8 @@ function OrderTable() {
             partner: order.partnerName,
             driver: order.driverName,
             clientAddress: order.clientAddress,
+            createdAt: order.createdAt ? new Date(order.createdAt) : new Date(),
+            rawData: order, // Store raw data for filtering
             action: (
               <MDBox display="flex" alignItems="center">
                 <EditIcon color="info" style={{ cursor: "pointer" }} onClick={(e) => handleOpenMenu(e, order)} />
@@ -340,6 +348,26 @@ function OrderTable() {
     }
   }, [ordersData])
 
+  // Filter and sort orders
+  const filteredAndSortedOrders = orders
+    .filter((order) => {
+      const searchLower = searchQuery.toLowerCase()
+      return (
+        order.status.toLowerCase().includes(searchLower) ||
+        order.partner.toLowerCase().includes(searchLower) ||
+        order.driver.toLowerCase().includes(searchLower) ||
+        order.clientAddress.toLowerCase().includes(searchLower) ||
+        order.id.toString().includes(searchLower)
+      )
+    })
+    .sort((a, b) => {
+      if (sortOrder === "newest") {
+        return b.createdAt - a.createdAt
+      } else {
+        return a.createdAt - b.createdAt
+      }
+    })
+
   const handleOpenMenu = (event, order) => {
     setAnchorEl(event.currentTarget)
     setSelectedOrder(order)
@@ -355,7 +383,7 @@ function OrderTable() {
 
   const handleEditStatus = async (newStatus) => {
     if (!selectedOrder || !newStatus) {
-      enqueueSnackbar("Missing data", { variant: "error" })
+      enqueueSnackbar("Données manquantes", { variant: "error" })
       return
     }
 
@@ -369,7 +397,7 @@ function OrderTable() {
         },
       })
 
-      enqueueSnackbar(`Status updated: ${data.updateOrderStatus.status}`, {
+      enqueueSnackbar(`Statut mis à jour : ${data.updateOrderStatus.status}`, {
         variant: "success",
       })
 
@@ -380,8 +408,8 @@ function OrderTable() {
       setIsEditStatusModalOpen(false)
       setSelectedOrder(null)
     } catch (error) {
-      console.error("Update error:", error)
-      enqueueSnackbar(`Failed: ${error.message}`, { variant: "error" })
+      console.error("Erreur de mise à jour:", error)
+      enqueueSnackbar(`Échec : ${error.message}`, { variant: "error" })
     } finally {
       setIsStatusUpdateLoading(false)
     }
@@ -389,12 +417,12 @@ function OrderTable() {
 
   const handleBulkAssign = async () => {
     if (!selectedDriverId) {
-      enqueueSnackbar("Please select a driver", { variant: "error" })
+      enqueueSnackbar("Veuillez sélectionner un chauffeur", { variant: "error" })
       return
     }
 
     if (selectedOrders.length === 0) {
-      enqueueSnackbar("Please select at least one order", { variant: "error" })
+      enqueueSnackbar("Veuillez sélectionner au moins une commande", { variant: "error" })
       return
     }
 
@@ -402,7 +430,7 @@ function OrderTable() {
 
     try {
       // Show a notification that we're attempting to assign orders
-      enqueueSnackbar("Assigning orders...", { variant: "info" })
+      enqueueSnackbar("Assignation des commandes...", { variant: "info" })
 
       const { data } = await assignOrdersToDriver({
         variables: {
@@ -414,14 +442,14 @@ function OrderTable() {
       await refetchOrders()
       setIsBulkAssignModalOpen(false)
       setSelectedOrders([])
-      enqueueSnackbar(`${selectedOrders.length} orders assigned successfully!`, {
+      enqueueSnackbar(`${selectedOrders.length} commandes assignées avec succès !`, {
         variant: "success",
         autoHideDuration: 5000,
         anchorOrigin: { vertical: "top", horizontal: "center" },
       })
     } catch (error) {
       // Error will be handled by the onError callback in the mutation
-      console.error("Error in try/catch:", error)
+      console.error("Erreur dans try/catch:", error)
     } finally {
       setIsBulkAssignLoading(false)
     }
@@ -429,7 +457,7 @@ function OrderTable() {
 
   const openBulkAssignModal = () => {
     if (!selectedOrders.length) {
-      enqueueSnackbar("Select at least one order", { variant: "warning" })
+      enqueueSnackbar("Sélectionnez au moins une commande", { variant: "warning" })
       return
     }
     setIsBulkAssignModalOpen(true)
@@ -439,7 +467,7 @@ function OrderTable() {
   const openHistoryModal = async (order) => {
     try {
       if (!order || !order._id) {
-        enqueueSnackbar("Invalid order data", { variant: "error" })
+        enqueueSnackbar("Données de commande invalides", { variant: "error" })
         return
       }
 
@@ -458,8 +486,8 @@ function OrderTable() {
       setSelectedOrder(order)
       setIsHistoryModalOpen(true)
     } catch (error) {
-      console.error("Error loading history:", error)
-      enqueueSnackbar(`Failed to load history: ${error.message}`, {
+      console.error("Erreur lors du chargement de l&apos;historique:", error)
+      enqueueSnackbar(`Échec du chargement de l&apos;historique : ${error.message}`, {
         variant: "error",
       })
     }
@@ -469,28 +497,27 @@ function OrderTable() {
     setSelectedOrders((prev) => (prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]))
   }
 
+  // Couleurs des statuts selon l'enum backend
   const statusColors = {
-    PENDING: "warning",
-    IN_CENTRAL_WAREHOUSE: "info",
-    ASSIGNED: "success",
-    OUT_FOR_DELIVERY: "primary",
-    DELIVERED: "success",
-    DELIVERY_FAILED: "error",
-    RETURNED: "error",
-    CANCELED: "error",
-    PENDING_RESOLUTION: "warning",
-    FOLLOW_UP: "info",
-    DELAYED: "warning",
-    PARTIALLY_DELIVERED: "success",
-    IN_WAREHOUSE: "secondary",
-    AWAITING_CONFIRMATION: "warning",
-    VERIFICATION: "info",
-  };
-  
+    "EN_ATTENTE": "warning",
+    "ATTRIBUÉ": "info",
+    "EN_LIVRAISON": "primary",
+    "LIVRÉ": "success",
+    "ÉCHEC_LIVRAISON": "error",
+    "RETOURNÉ": "error",
+    "ANNULÉ": "error",
+    "EN_ATTENTE_RÉSOLUTION": "warning",
+    "RETARDÉ": "warning",
+    "PARTIELLEMENT_LIVRÉ": "success",
+    "EN_ENTREPOT": "secondary", // Corrigé : sans accent circonflexe
+    "EN_ATTENTE_CONFIRMATION": "warning",
+    "EN_VÉRIFICATION": "info",
+    "RELANCE": "info",
+  }
 
   const columns = [
     {
-      Header: "Select",
+      Header: "Sélectionner",
       accessor: "_id",
       Cell: ({ value }) => (
         <Checkbox checked={selectedOrders.includes(value)} onChange={() => handleSelectOrder(value)} />
@@ -499,25 +526,34 @@ function OrderTable() {
     },
     { Header: "ID", accessor: "id", align: "center" },
     {
-      Header: "Status",
+      Header: "Statut",
       accessor: "status",
       Cell: ({ value }) => (
-        <MDTypography variant="caption" color={statusColors[value]} fontWeight="medium">
+        <MDTypography variant="caption" color={statusColors[value] || "dark"} fontWeight="medium">
           {value}
         </MDTypography>
       ),
       align: "center",
     },
-    { Header: "Partner", accessor: "partner", align: "center" },
-    { Header: "Driver", accessor: "driver", align: "center" },
+    { Header: "Partenaire", accessor: "partner", align: "center" },
+    { Header: "Chauffeur", accessor: "driver", align: "center" },
     {
-      Header: "Client Address",
+      Header: "Adresse Client",
       accessor: "clientAddress",
       Cell: ({ value }) => (
-        <MDBox display="flex" alignItems="center">
-          <LocationOnIcon fontSize="small" color="info" sx={{ mr: 0.5 }} />
-          <MDTypography variant="caption" fontWeight="medium">
-            {value}
+        <MDBox display="flex" alignItems="center" maxWidth="250px">
+          <LocationOnIcon fontSize="small" color="info" sx={{ mr: 0.5, flexShrink: 0 }} />
+          <MDTypography 
+            variant="caption" 
+            fontWeight="medium"
+            sx={{ 
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap"
+            }}
+            title={value} // Tooltip pour voir l'adresse complète
+          >
+            {value || "Adresse non disponible"}
           </MDTypography>
         </MDBox>
       ),
@@ -525,7 +561,7 @@ function OrderTable() {
     },
     { Header: "Action", accessor: "action", align: "center" },
     {
-      Header: "History",
+      Header: "Historique",
       accessor: "history",
       align: "center",
     },
@@ -535,27 +571,72 @@ function OrderTable() {
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox pt={6} pb={3}>
+        <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <MDBox>
+            <MDTypography variant="h4" fontWeight="medium">
+              Gestion des Commandes
+            </MDTypography>
+            <MDTypography variant="body2" color="text">
+              Suivi et gestion des commandes de livraison
+            </MDTypography>
+          </MDBox>
+
+          <MDBox display="flex" alignItems="center" gap={2}>
+            <TextField
+              label="Rechercher"
+              variant="outlined"
+              size="small"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              placeholder="ID, statut, partenaire, chauffeur..."
+            />
+
+            <Box sx={{ minWidth: 120 }}>
+              <TextField
+                select
+                label="Trier par"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                size="small"
+                SelectProps={{
+                  native: true,
+                }}
+              >
+                <option value="newest">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+              </TextField>
+            </Box>
+
+            {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
+              <MDButton
+                variant="gradient"
+                color="warning"
+                onClick={openBulkAssignModal}
+                disabled={!selectedOrders.length}
+              >
+                Assigner les Commandes Sélectionnées
+              </MDButton>
+            )}
+          </MDBox>
+        </MDBox>
+        
+
         <Grid container spacing={6}>
           <Grid item xs={12}>
             <Card>
-              <MDBox p={2} display="flex" justifyContent="flex-end">
-                {(currentUser?.role === "ADMIN" || currentUser?.role === "ADMIN_ASSISTANT") && (
-                  <MDButton
-                    variant="gradient"
-                    color="warning"
-                    onClick={openBulkAssignModal}
-                    disabled={!selectedOrders.length}
-                  >
-                    Assign Selected Orders
-                  </MDButton>
-                )}
-              </MDBox>
               <MDBox pt={3}>
                 <DataTable
-                  table={{ columns, rows: orders }}
+                  table={{ columns, rows: filteredAndSortedOrders }}
                   isSorted={false}
-                  entriesPerPage={false}
-                  showTotalEntries={false}
+                  entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
+                  showTotalEntries={true}
                   noEndBorder
                 />
               </MDBox>
@@ -566,14 +647,14 @@ function OrderTable() {
 
       {/* Bulk Assign Modal */}
       <Dialog open={isBulkAssignModalOpen} onClose={() => setIsBulkAssignModalOpen(false)}>
-        <DialogTitle>Assign Orders to Driver</DialogTitle>
+        <DialogTitle>Assigner les Commandes au Chauffeur</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="normal">
-            <InputLabel>Select Driver</InputLabel>
+            <InputLabel>Sélectionner un Chauffeur</InputLabel>
             <Select
               value={selectedDriverId}
               onChange={(e) => setSelectedDriverId(e.target.value)}
-              label="Select Driver"
+              label="Sélectionner un Chauffeur"
             >
               {availableDrivers.map((driver) => (
                 <MenuItem key={driver._id} value={driver._id}>
@@ -585,10 +666,10 @@ function OrderTable() {
         </DialogContent>
         <DialogActions>
           <MDButton onClick={() => setIsBulkAssignModalOpen(false)} color="secondary">
-            Cancel
+            Annuler
           </MDButton>
           <MDButton onClick={handleBulkAssign} color="info" disabled={isBulkAssignLoading}>
-            {isBulkAssignLoading ? "Assigning..." : "Assign"}
+            {isBulkAssignLoading ? "Assignation..." : "Assigner"}
           </MDButton>
         </DialogActions>
       </Dialog>
@@ -640,9 +721,8 @@ function OrderTable() {
           }}
         >
           <EditIcon fontSize="small" />
-          &nbsp; Edit Status
+          &nbsp; Modifier le Statut
         </MenuItem>
-      
       </Menu>
     </DashboardLayout>
   )

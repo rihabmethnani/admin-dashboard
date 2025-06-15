@@ -30,9 +30,8 @@ import bgImage from "assets/images/background1.jpg";
 import { clientMicroservice1 } from "apolloClients/microservice1";
 import { useAuth } from "context/AuthContext";
 
-
 function Basic() {
-  const {currentUser,setCurrentUser}=useAuth()
+  const { currentUser, setCurrentUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -52,62 +51,61 @@ function Basic() {
   // Utilisez le client spécifique pour le microservice 1
   const [login, { loading, error }] = useMutation(LOGIN_MUTATION, {
     client: clientMicroservice1,
-    onCompleted:(data)=>{
-    console.log(data)
-    }, // Spécifiez explicitement le client ici
-    
+    onCompleted: (data) => {
+      console.log(data);
+    },
   });
-  const LOAD_ME_QUERY = gql`
-  query LoadMe($token: String!) {
-    loadMe(token: $token) {
-      _id
-      name
-      email
-      role
-    }
-  }
-`;
-const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
-  client: clientMicroservice1,
-});
 
+  const LOAD_ME_QUERY = gql`
+    query LoadMe($token: String!) {
+      loadMe(token: $token) {
+        _id
+        name
+        email
+        role
+      }
+    }
+  `;
+
+  const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
+    client: clientMicroservice1,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     if (!email || !password) {
       alert("Veuillez remplir tous les champs.");
       return;
     }
-  
+
     try {
       const { data } = await login({ variables: { email, password } });
       const token = data.login.access_token;
-  
+
       localStorage.setItem("access_token", token);
-  
-      // Now fetch the current user using loadMe
+
+      // Récupérer les informations de l'utilisateur actuel avec loadMe
       const { data: userData } = await loadMe({ variables: { token } });
-  if (userData && userData.loadMe) {
-    setCurrentUser(userData.loadMe); // Store the user data in the context
-        console.log("Current User:", userData.loadMe);
-        console.log('currentUser',currentUser)
+      if (userData && userData.loadMe) {
+        setCurrentUser(userData.loadMe); // Stocker les données utilisateur dans le contexte
+        console.log("Utilisateur actuel:", userData.loadMe);
+        console.log("currentUser", currentUser);
       }
-  
+
       navigate("/dashboard");
     } catch (error) {
       console.error("Erreur lors de la connexion :", error);
     }
   };
+
   return (
     <BasicLayout image={bgImage}>
-      
       <Card>
         <MDBox
           variant="gradient"
           bgColor="warning"
           borderRadius="lg"
-          //coloredShadow="none"
           mx={2}
           mt={-3}
           p={2}
@@ -115,7 +113,7 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
           textAlign="center"
         >
           <MDTypography variant="h4" fontWeight="medium" color="white" mt={1}>
-            Sign in
+            Connexion
           </MDTypography>
           {/* <Grid container spacing={3} justifyContent="center" sx={{ mt: 1, mb: 2 }}>
             <Grid item xs={2}>
@@ -140,7 +138,7 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
             <MDBox mb={2}>
               <MDInput
                 type="email"
-                label="Email"
+                label="Adresse e-mail"
                 fullWidth
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -149,7 +147,7 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
             <MDBox mb={2}>
               <MDInput
                 type="password"
-                label="Password"
+                label="Mot de passe"
                 fullWidth
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -164,17 +162,17 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
                 onClick={handleSetRememberMe}
                 sx={{ cursor: "pointer", userSelect: "none", ml: -1 }}
               >
-                &nbsp;&nbsp;Remember me
+                &nbsp;&nbsp;Se souvenir de moi
               </MDTypography>
             </MDBox>
             <MDBox mt={4} mb={1}>
               <MDButton variant="gradient" color="warning" fullWidth type="submit">
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Connexion en cours..." : "Se connecter"}
               </MDButton>
             </MDBox>
             {/* <MDBox mt={3} mb={1} textAlign="center">
               <MDTypography variant="button" color="text">
-                Don&apos;t have an account?{" "}
+                Vous n&apos;avez pas de compte ?{" "}
                 <MDTypography
                   component={Link}
                   to="/authentication/sign-up"
@@ -183,14 +181,14 @@ const [loadMe] = useLazyQuery(LOAD_ME_QUERY, {
                   fontWeight="medium"
                   textGradient
                 >
-                  Sign up
+                  S&apos;inscrire
                 </MDTypography>
               </MDTypography>
             </MDBox> */}
             {error && (
               <MDBox mt={2}>
                 <MDTypography variant="caption" color="error">
-                  Invalid credentials. Please try again.
+                  Identifiants invalides. Veuillez réessayer.
                 </MDTypography>
               </MDBox>
             )}
